@@ -15,6 +15,7 @@ const PRESENTATION: Record<string, AuditPresentation> = {
   "token.created": { label: "Application link created", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
   "token.revoked": { label: "Application link deactivated", color: "#9f1239", background: "#ffe4e6", border: "#fecdd3" },
   "token.regenerated": { label: "Application link renewed", color: "#6b21a8", background: "#f3e8ff", border: "#e9d5ff" },
+  "token.revealed": { label: "Application link viewed", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
   "application.submitted": { label: "Application submitted", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
   "application.edited": { label: "Application details updated", color: "#4338ca", background: "#e0e7ff", border: "#c7d2fe" },
   "application.approved": { label: "Application approved", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
@@ -26,6 +27,7 @@ const PRESENTATION: Record<string, AuditPresentation> = {
   "batch.created": { label: "ID print batch created", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
   "notification.queued": { label: "Email notification queued", color: "#92400e", background: "#fef3c7", border: "#fde68a" },
   "notification.retried": { label: "Email notification retried", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
+  "notification.acknowledged": { label: "Email receipt acknowledged", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
 };
 
 type AuditMetadata = Record<string, unknown> | null | undefined;
@@ -76,6 +78,8 @@ export function auditDetails(action: string, metadata: AuditMetadata): string {
       return label ? `Deactivated link: ${label}` : "Application link deactivated";
     case "token.regenerated":
       return label ? `Renewed link: ${label}` : "Application link renewed";
+    case "token.revealed":
+      return label ? `Viewed link: ${label}` : "Application link viewed";
     case "application.submitted": {
       const grade = textValue(metadata, "gradeLevel");
       return [grade, "Awaiting review"].filter(Boolean).join(" · ");
@@ -111,6 +115,8 @@ export function auditDetails(action: string, metadata: AuditMetadata): string {
     }
     case "notification.queued":
       return "Email added to the delivery queue";
+    case "notification.acknowledged":
+      return "Recipient confirmed receipt of the email";
     default:
       return "";
   }

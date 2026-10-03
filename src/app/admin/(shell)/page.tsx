@@ -81,6 +81,19 @@ export default async function DashboardPage({
     { key: "claimed", label: "Claimed", color: "#64748b", description: "Complete", action: false },
     { key: "rejected", label: "Not approved", color: "#dc2626", description: "Closed", action: false },
   ] as const;
+  let chartOffset = 0;
+  const chartSegments = statusBreakdown.map(({ key, color }) => {
+    const percentage = counts.total ? (counts[key] / counts.total) * 100 : 0;
+    const segment = { key, color, start: chartOffset, end: chartOffset + percentage };
+    chartOffset += percentage;
+    return segment;
+  });
+  const chartBackground = counts.total
+    ? `conic-gradient(from -90deg, ${chartSegments.map(({ color, start, end }) => `${color} ${start}% ${end}%`).join(", ")})`
+    : "var(--line)";
+  const chartDescription = counts.total
+    ? `Status distribution: ${statusBreakdown.map(({ key, label }) => `${label} ${counts[key]}`).join(", ")}`
+    : "Application status distribution: no applications yet";
 
   return (
     <div>
@@ -120,57 +133,43 @@ export default async function DashboardPage({
         </div>
 
         <div className="p-5">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold">Application status distribution</p>
-          </div>
-          <div
-            className="mb-4 flex h-3 overflow-hidden rounded-full"
-            style={{ background: "var(--line)" }}
-            role="img"
-            aria-label={`Status distribution: ${statusBreakdown.map(({ key, label }) => `${label} ${counts[key]}`).join(", ")}`}
-          >
-            {statusBreakdown.map(({ key, color }) => (
-              <span key={key} style={{ width: `${counts.total ? (counts[key] / counts.total) * 100 : 0}%`, background: color }} />
-            ))}
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            {statusBreakdown.map(({ key, label, color, action }) => {
-              const count = counts[key];
-              const percent = counts.total ? Math.round((count / counts.total) * 100) : 0;
-              return (
-                <Link
-                  key={key}
-                  href={`/admin/applications?status=${key}`}
-                  className="card-interactive rounded-lg border p-3 no-underline"
-                  style={{ borderColor: "var(--line)" }}
-                  aria-label={`${label}: ${count} records, ${percent} percent. ${count === 0 ? "No records in this status." : action && count > 0 ? "Action needed." : ""}`}
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <span className="text-muted text-xs tabular-nums">{percent}%</span>
+          <div className="grid items-center gap-6 md:grid-cols-[minmax(180px,0.75fr)_minmax(0,1.5fr)]">
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs font-semibold">Application status distribution</p>
+              <div
+                className="h-44 w-44 rounded-full shadow-sm ring-1 ring-[var(--line)]"
+                role="img"
+                aria-label={chartDescription}
+                style={{ background: chartBackground }}
+              >
+              </div>
+            </div>
+            <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+              {statusBreakdown.map(({ key, label, color, description, action }) => {
+                const count = counts[key];
+                const percent = counts.total ? Math.round((count / counts.total) * 100) : 0;
+                return (
+                  <Link
+                    key={key}
+                    href={`/admin/applications?status=${key}`}
+                    className="flex min-h-12 items-center gap-3 py-2.5 no-underline transition-colors hover:bg-[var(--bg)]"
+                    aria-label={`${label}: ${count} records, ${percent} percent. ${count > 0 && action ? "Action needed." : description}`}
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-semibold">{label}</span>
+                      <span className="text-muted block text-[10px]">{description}</span>
+                    </span>
                     {action && count > 0 && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "#fff7ed", color: "#9a3412" }}>
+                      <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: "#fff7ed", color: "#9a3412" }}>
                         Action needed
                       </span>
                     )}
-                  </div>
-                  <p className="text-2xl font-extrabold tabular-nums">{count}</p>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
-                    <span className="block h-full rounded-full" style={{ width: `${percent}%`, background: color }} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-3" style={{ borderColor: "var(--line)" }}>
-            <div className="flex flex-wrap gap-x-4 gap-y-2" aria-label="Status color legend">
-              {statusBreakdown.map(({ key, label, color, description }) => (
-                <span key={key} className="flex items-center gap-1.5 text-[11px]">
-                  <span className="h-2 w-2 rounded-full" style={{ background: color }} aria-hidden />
-                  <span>{label} <span className="text-muted">· {description}</span></span>
-                </span>
-              ))}
+                    <span className="w-10 text-right text-sm font-bold tabular-nums">{count}</span>
+                    <span className="text-muted w-11 text-right text-xs tabular-nums">{percent}%</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         </div>

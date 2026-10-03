@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { applicationAccessTokens } from "@/db/schema";
 import { encryptAccessToken, randomToken, sha256Hex } from "@/lib/crypto";
 
+type Executor = Pick<typeof db, "insert">;
+
 export type AccessTokenStatus = "active" | "revoked" | "expired";
 
 export async function validateAccessToken(raw: string) {
@@ -34,9 +36,9 @@ export async function createAccessToken(opts: {
   label: string;
   expiresAt: Date | null;
   createdByAdminId: number;
-}): Promise<{ raw: string; id: number }> {
+}, executor: Executor = db): Promise<{ raw: string; id: number }> {
   const raw = randomToken(32);
-  const rows = await db
+  const rows = await executor
     .insert(applicationAccessTokens)
     .values({
       tokenHash: sha256Hex(raw),

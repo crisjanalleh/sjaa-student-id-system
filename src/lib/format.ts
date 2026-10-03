@@ -1,3 +1,5 @@
+import { config } from "@/lib/config";
+
 export function maskEmail(email: string): string {
   if (!email) return "—";
   const at = email.indexOf("@");
@@ -19,6 +21,7 @@ export function formatDateTime(d: Date | string | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
+    timeZone: config.timeZone,
   }).format(date);
 }
 
@@ -30,6 +33,7 @@ export function formatDate(d: Date | string | null | undefined): string {
     year: "numeric",
     month: "short",
     day: "2-digit",
+    timeZone: config.timeZone,
   }).format(date);
 }
 

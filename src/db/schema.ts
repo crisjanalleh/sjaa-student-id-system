@@ -243,6 +243,8 @@ export const notificationLogs = mysqlTable(
     error: text("error"),
     attempts: int("attempts").notNull().default(0),
     sentAt: datetime("sent_at", { mode: "date", fsp: 3 }),
+    acknowledgementTokenHash: varchar("acknowledgement_token_hash", { length: 64 }),
+    acknowledgedAt: datetime("acknowledged_at", { mode: "date", fsp: 3 }),
     createdAt: datetime("created_at", { mode: "date", fsp: 3 }).default(sql`(now())`).notNull(),
     updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).default(sql`(now())`).notNull(),
   },
@@ -250,6 +252,7 @@ export const notificationLogs = mysqlTable(
     index("notification_logs_application_idx").on(t.applicationId),
     index("notification_logs_status_idx").on(t.sentStatus),
     index("notification_logs_created_idx").on(t.createdAt),
+    uniqueIndex("notification_logs_ack_token_uq").on(t.acknowledgementTokenHash),
     foreignKey({
       name: "notifications_application_fk",
       columns: [t.applicationId],
@@ -303,6 +306,7 @@ export const adminSessions = mysqlTable(
   },
   (t) => [
     uniqueIndex("admin_sessions_token_uq").on(t.tokenHash),
+    index("admin_sessions_expires_idx").on(t.expiresAt),
     foreignKey({
       name: "admin_sessions_user_fk",
       columns: [t.adminUserId],
@@ -340,6 +344,7 @@ export const formSessions = mysqlTable(
   },
   (t) => [
     uniqueIndex("form_sessions_token_uq").on(t.tokenHash),
+    index("form_sessions_expires_idx").on(t.expiresAt),
     foreignKey({
       name: "form_sessions_token_fk",
       columns: [t.accessTokenId],

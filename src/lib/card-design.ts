@@ -23,7 +23,7 @@ function boundedNumber(value: unknown, fallback: number, min: number, max: numbe
 function normalizedSignature(value: unknown): string | null {
   if (
     typeof value === "string" &&
-    value.length <= 30_000 &&
+    value.length <= 180_000 &&
     /^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(value)
   ) {
     return value;

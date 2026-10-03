@@ -8,7 +8,11 @@ import { hashIp, newApplicationCode } from "@/lib/crypto";
 import { csrfOk, getFormContext } from "@/lib/auth";
 import { PhotoError, deletePhoto, processStudentPhoto } from "@/lib/photos";
 import { cleanupRateLimits, rateLimitHit, rateLimitPeek } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readFormDataBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { hasErrors, validateApplicationFields } from "@/lib/validate";
 import { duplicateEntryMessage, isDuplicateEntry } from "@/lib/db-errors";
 
@@ -30,7 +34,7 @@ export async function POST(req: Request) {
   const contentLength = Number(req.headers.get("content-length") || 0);
   const hardLimit = (config.maxUploadMb + 2) * 1024 * 1024;
   if (contentLength > hardLimit) {
-    return json(413, { ok: false, error: `The upload exceeds the ${config.maxUploadMb} MB photo limit.` });
+    return json(413, { ok: false, error: `The request is too large. Photo files must be no larger than ${config.maxUploadMb} MB.` });
   }
 
   // 1. A valid form session (from a distributed QR token) is mandatory.
@@ -52,7 +56,7 @@ export async function POST(req: Request) {
   if (!ipLimit.allowed) {
     return json(429, {
       ok: false,
-      error: "Submission limit reached. You can submit up to 3 applications per hour from this connection. Please try again later.",
+      error: `Submission limit reached. You can submit up to ${config.submissionsPerHour} applications per hour from this connection. Please try again later.`,
     });
   }
   const tokenLimit = await rateLimitHit(`sub:tok:${ctx.accessTokenId}`, 60, 3600);
@@ -62,7 +66,12 @@ export async function POST(req: Request) {
       error: "This application link is temporarily rate-limited. Please try again later.",
     });
   }
-  void cleanupRateLimits();
+  void cleanupRateLimits().catch((err: unknown) => {
+    console.error(
+      "Rate-limit cleanup failed:",
+      err instanceof Error ? err.message : err,
+    );
+  });
 
   // Abusive-client bucket: repeated malformed requests are throttled harder.
   // Peek first (no increment); increments happen only on actual failures.
@@ -74,9 +83,12 @@ export async function POST(req: Request) {
 
   let formData: FormData;
   try {
-    formData = await req.formData();
-  } catch {
-    void countFailure();
+    formData = await readFormDataBounded(req, hardLimit);
+  } catch (err) {
+    await countFailure();
+    if (err instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: `The request is too large. Photo files must be no larger than ${config.maxUploadMb} MB.` });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 
@@ -87,7 +99,7 @@ export async function POST(req: Request) {
   }
   const { values, errors } = validateApplicationFields(raw);
   if (hasErrors(errors)) {
-    void countFailure();
+    await countFailure();
     return json(422, { ok: false, error: "Please correct the highlighted fields.", errors });
   }
 
@@ -133,7 +145,7 @@ export async function POST(req: Request) {
         duplicateErrors.lastName = "This name is already included in the matching submitted application.";
       }
     }
-    void countFailure();
+    await countFailure();
     return json(409, { ok: false, error: DUPLICATE_MESSAGE, errors: duplicateErrors });
   }
 
@@ -166,32 +178,34 @@ export async function POST(req: Request) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = newApplicationCode();
     try {
-      await db.insert(studentApplications).values({
-        applicationCode: code,
-        studentIdNumber: values.studentIdNumber,
-        firstName: values.firstName,
-        middleName: values.middleName,
-        lastName: values.lastName,
-        suffix: values.suffix,
-        address: values.address,
-        gradeLevel: values.gradeLevel,
-        trackStrand: values.trackStrand,
-        email: values.email,
-        contactNumber: values.contactNumber,
-        emergencyContactName: values.emergencyContactName,
-        emergencyContactPhone: values.emergencyContactPhone,
-        bloodType: values.bloodType,
-        photoStorageKey: photoKey,
-        accessTokenId: ctx.accessTokenId,
-        status: "pending",
-      });
+      await db.transaction(async (tx) => {
+        await tx.insert(studentApplications).values({
+          applicationCode: code,
+          studentIdNumber: values.studentIdNumber,
+          firstName: values.firstName,
+          middleName: values.middleName,
+          lastName: values.lastName,
+          suffix: values.suffix,
+          address: values.address,
+          gradeLevel: values.gradeLevel,
+          trackStrand: values.trackStrand,
+          email: values.email,
+          contactNumber: values.contactNumber,
+          emergencyContactName: values.emergencyContactName,
+          emergencyContactPhone: values.emergencyContactPhone,
+          bloodType: values.bloodType,
+          photoStorageKey: photoKey,
+          accessTokenId: ctx.accessTokenId,
+          status: "pending",
+        });
 
-      await audit({
-        action: "application.submitted",
-        entityType: "application",
-        entityId: code,
-        metadata: { gradeLevel: values.gradeLevel, hasPhoto: Boolean(photoKey) },
-        ip,
+        await audit({
+          action: "application.submitted",
+          entityType: "application",
+          entityId: code,
+          metadata: { gradeLevel: values.gradeLevel, hasPhoto: Boolean(photoKey) },
+          ip,
+        }, tx);
       });
 
       return json(201, { ok: true, applicationCode: code });

@@ -32,6 +32,14 @@ function statusOf(t: TokenRow): { key: string; cls: string } {
   return { key: "Active", cls: "badge-active" };
 }
 
+function formatTokenDate(value: string): { date: string; time: string } {
+  const date = new Date(value);
+  return {
+    date: date.toLocaleDateString("en-PH", { month: "short", day: "2-digit", year: "numeric" }),
+    time: date.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
 export default function QrManager({
   tokens,
   csrfToken,
@@ -223,7 +231,7 @@ export default function QrManager({
 
   return (
     <div className="grid gap-5 lg:grid-cols-12">
-      <div className="flex flex-col gap-5 lg:col-span-4">
+      <div className="flex flex-col gap-5 lg:col-span-3">
         {/* Create form */}
         <section className="card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-bold">
@@ -318,7 +326,7 @@ export default function QrManager({
       </div>
 
       {/* Token registry */}
-      <section className="card h-fit lg:col-span-8">
+      <section className="card h-fit lg:col-span-9">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
           <h2 className="text-sm font-bold">Token Registry</h2>
           <Link
@@ -334,7 +342,7 @@ export default function QrManager({
             No access tokens yet. Generate one to open the public application form.
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="tbl qr-token-table">
               <colgroup>
                 <col className="qr-col-label" />
@@ -359,26 +367,32 @@ export default function QrManager({
                   const s = statusOf(t);
                   return (
                     <tr key={t.id}>
-                      <td className="qr-token-label">
+                      <td className="qr-token-label" data-label="Label">
                         <p className="text-xs font-bold">{t.label}</p>
                         <p className="text-muted text-[10.5px]">
                           #{t.id}
                         </p>
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span className={`badge ${s.cls}`}>{s.key}</span>
                       </td>
-                      <td className="text-muted whitespace-nowrap text-xs">
-                        {t.expiresAt
-                          ? new Date(t.expiresAt).toLocaleString("en-PH", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                          : "Never"}
+                      <td className="text-muted whitespace-nowrap text-xs" data-label="Expires">
+                        {t.expiresAt ? (
+                          <>
+                            <span className="block">{formatTokenDate(t.expiresAt).date}</span>
+                            <span className="text-[10px]">{formatTokenDate(t.expiresAt).time}</span>
+                          </>
+                        ) : "Never"}
                       </td>
-                      <td className="text-center text-xs font-semibold tabular-nums">{t.useCount}</td>
-                      <td className="text-muted whitespace-nowrap text-xs">{new Date(t.createdAt).toLocaleString("en-PH", { month: "short", day: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
-                      <td className="qr-token-manage">
+                      <td className="text-center text-xs font-semibold tabular-nums" data-label="Uses">{t.useCount}</td>
+                      <td className="text-muted text-xs" data-label="Created">
+                        <span className="block">{formatTokenDate(t.createdAt).date}</span>
+                        <span className="text-[10px]">{formatTokenDate(t.createdAt).time}</span>
+                      </td>
+                      <td className="qr-token-manage" data-label="Actions">
                         {s.key === "Active" ? (
                           <select
-                            className="inp !w-[154px] !min-w-[154px] !px-2 !py-1.5 text-xs"
+                            className="qr-action-select inp w-full !min-w-0 !px-2 !py-1.5 text-xs"
                             aria-label={`Actions for ${t.label}`}
                             value=""
                             disabled={Boolean(busy)}

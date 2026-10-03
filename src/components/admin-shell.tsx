@@ -1,12 +1,10 @@
 "use client";
 
 import {
-  ChevronUp,
   LogOut,
   MapPin,
-  Menu,
+  SlidersHorizontal,
   ShieldCheck,
-  X,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -122,14 +120,20 @@ export default function AdminShell({
                 Administration workspace
               </p>
               <div className="admin-workspace-context">
-                <span className="inline-flex items-center gap-2 text-xs font-semibold">
+                <div className="admin-workspace-context-item">
                   <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden />
-                  Authorized staff
-                </span>
-                <span className="text-muted mt-1 inline-flex items-center gap-2 text-[11px]">
+                  <span>
+                    <span className="admin-workspace-context-label">Access</span>
+                    <span className="admin-workspace-context-value">Authorized staff</span>
+                  </span>
+                </div>
+                <div className="admin-workspace-context-item">
                   <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {SCHOOL.location}
-                </span>
+                  <span>
+                    <span className="admin-workspace-context-label">School location</span>
+                    <span className="admin-workspace-context-value">{SCHOOL.location}</span>
+                  </span>
+                </div>
               </div>
               <Link
                 href="/admin/profile"
@@ -170,9 +174,8 @@ export default function AdminShell({
               aria-controls="admin-workspace-panel"
               aria-label={workspaceMenuOpen ? "Close workspace menu" : "Open workspace menu"}
             >
-              {workspaceMenuOpen ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
+              <SlidersHorizontal className="h-4 w-4" aria-hidden />
               <span>Workspace</span>
-              <ChevronUp className={`h-3.5 w-3.5 transition-transform ${workspaceMenuOpen ? "" : "rotate-180"}`} aria-hidden />
             </button>
           </div>
         </header>

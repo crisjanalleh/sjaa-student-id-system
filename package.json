@@ -10,7 +10,9 @@
     "test:email": "tsx scripts/test-email.ts",
     "db:migrate:orientation": "tsx scripts/migrate-template-orientation.ts",
     "db:migrate:template-design": "tsx scripts/migrate-template-design.ts",
-    "db:migrate:admin-profile-sharing": "tsx scripts/migrate-admin-profile-sharing.ts"
+    "db:migrate:admin-profile-sharing": "tsx scripts/migrate-admin-profile-sharing.ts",
+    "db:migrate:notification-acknowledgement": "tsx scripts/migrate-notification-acknowledgement.ts",
+    "db:migrate:session-expiry-indexes": "tsx scripts/migrate-session-expiry-indexes.ts"
   },
   "dependencies": {
     "@types/nodemailer": "^8.0.2",

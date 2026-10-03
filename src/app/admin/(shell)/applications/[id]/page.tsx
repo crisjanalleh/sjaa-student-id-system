@@ -226,6 +226,11 @@ export default async function ApplicationDetailPage({
                       {n.sentAt ? ` · sent ${formatDateTime(n.sentAt)}` : ""}
                       {n.attempts > 1 ? ` · ${n.attempts} attempts` : ""}
                     </p>
+                    {n.sentStatus === "sent" && (
+                      <p className="mt-1 text-[11px] font-medium" style={{ color: n.acknowledgedAt ? "var(--success)" : "var(--muted)" }}>
+                        {n.acknowledgedAt ? `Student acknowledged receipt on ${formatDateTime(n.acknowledgedAt)}.` : "Awaiting student acknowledgement."}
+                      </p>
+                    )}
                     {n.error && <p className="mt-1 leading-relaxed" style={{ color: "var(--danger)" }}>{friendlyDeliveryError(n.error)}</p>}
                   </li>
                 ))}

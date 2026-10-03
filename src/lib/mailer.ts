@@ -7,6 +7,7 @@ import {
   type NotificationType,
 } from "@/db/schema";
 import { config } from "@/lib/config";
+import { randomToken, sha256Hex } from "@/lib/crypto";
 import {
   mailConfigured,
   renderNotification,
@@ -75,17 +76,36 @@ export async function deliverNotification(
 
   if (!row.app) return fail("Linked application no longer exists.");
   if (!row.log.recipientEmail) return fail("No recipient email address on record.");
+  if (row.log.acknowledgedAt) {
+    const acknowledgedSentAt = row.log.sentAt ?? row.log.acknowledgedAt;
+    await db
+      .update(notificationLogs)
+      .set({
+        sentStatus: "sent",
+        sentAt: acknowledgedSentAt,
+        error: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(notificationLogs.id, notificationId));
+    return { ok: true };
+  }
   if (!mailConfigured()) {
     return fail(mailConfigurationError() || "SMTP configuration is invalid.");
   }
 
-  const rendered = renderNotification(row.log.notificationType, {
-    applicationCode: row.app.applicationCode,
-    firstName: row.app.firstName,
-  }, { reason: row.app.rejectionReason });
-
   try {
+    const acknowledgementToken = randomToken(32);
+    const acknowledgeUrl = `${config.appUrl}/acknowledge?token=${encodeURIComponent(acknowledgementToken)}`;
+    const rendered = renderNotification(row.log.notificationType, {
+      applicationCode: row.app.applicationCode,
+      firstName: row.app.firstName,
+    }, { reason: row.app.rejectionReason, acknowledgeUrl });
     const transporter = createMailerTransport();
+
+    await db
+      .update(notificationLogs)
+      .set({ acknowledgementTokenHash: sha256Hex(acknowledgementToken), updatedAt: new Date() })
+      .where(eq(notificationLogs.id, notificationId));
 
     await transporter.sendMail({
       from: `"${config.mail.fromName.replaceAll('"', "")}" <${config.mail.fromAddress}>`,

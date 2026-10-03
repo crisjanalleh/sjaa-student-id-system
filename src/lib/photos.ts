@@ -101,10 +101,19 @@ export async function readPhoto(storageKey: string): Promise<Buffer> {
 }
 
 export async function deletePhoto(storageKey: string | null): Promise<void> {
-  if (!storageKey || !KEY_RE.test(storageKey)) return;
+  if (!storageKey) return;
+  if (!KEY_RE.test(storageKey)) throw new PhotoError(400, "Invalid storage key.");
   try {
     await unlink(pathForKey(storageKey));
-  } catch {
-    // Already gone — deletion is best-effort cleanup only.
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) {
+      return;
+    }
+    throw error;
   }
 }

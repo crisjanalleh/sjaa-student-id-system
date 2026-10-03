@@ -180,6 +180,11 @@ export default async function NotificationsPage({
                           {log.sentAt ? `Sent ${formatDateTime(log.sentAt)}` : "—"}
                         </span>
                       )}
+                      {log.sentStatus === "sent" && (
+                        <span className="mt-1 block text-[11px] font-medium" style={{ color: log.acknowledgedAt ? "var(--success)" : "var(--muted)" }}>
+                          {log.acknowledgedAt ? `Acknowledged ${formatDateTime(log.acknowledgedAt)}` : "Awaiting student acknowledgement"}
+                        </span>
+                      )}
                     </td>
                     <td className="text-muted whitespace-nowrap text-xs">{formatDateTime(log.createdAt)}</td>
                     <td className="!text-right">

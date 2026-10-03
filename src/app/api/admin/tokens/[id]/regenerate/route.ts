@@ -31,48 +31,51 @@ export async function POST(
   const id = Number.parseInt(rawId, 10);
   if (!Number.isInteger(id) || id <= 0) return json(400, { ok: false, error: "Invalid token id." });
 
-  const rows = await db
-    .select()
-    .from(applicationAccessTokens)
-    .where(eq(applicationAccessTokens.id, id))
-    .limit(1);
-  const old = rows[0];
-  if (!old) return json(404, { ok: false, error: "Token not found." });
+  const result = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select()
+      .from(applicationAccessTokens)
+      .where(eq(applicationAccessTokens.id, id))
+      .for("update")
+      .limit(1);
+    const old = rows[0];
+    if (!old) return { status: 404 as const };
+    if (old.revokedAt) return { status: 409 as const };
 
-  // Keep remaining lifetime when sensible; otherwise issue the default TTL.
-  let expiresAt: Date;
-  if (old.expiresAt && old.expiresAt.getTime() > Date.now() + 60 * 60 * 1000) {
-    expiresAt = old.expiresAt;
-  } else {
-    expiresAt = new Date(Date.now() + config.publicTokenDefaultTtlDays * 24 * 60 * 60 * 1000);
-  }
-
-  if (!old.revokedAt) {
-    await db
+    const expiresAt =
+      old.expiresAt && old.expiresAt.getTime() > Date.now() + 60 * 60 * 1000
+        ? old.expiresAt
+        : new Date(Date.now() + config.publicTokenDefaultTtlDays * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    await tx
       .update(applicationAccessTokens)
-      .set({ revokedAt: new Date() })
+      .set({ revokedAt: now })
       .where(eq(applicationAccessTokens.id, old.id));
+
+    const token = await createAccessToken({
+      label: old.label,
+      expiresAt,
+      createdByAdminId: ctx.admin.id,
+    }, tx);
+    await audit({
+      adminId: ctx.admin.id,
+      action: "token.regenerated",
+      entityType: "access_token",
+      entityId: token.id,
+      metadata: { label: old.label, revokedTokenId: old.id, expiresAt: expiresAt.toISOString() },
+      ip: clientIp(req),
+    }, tx);
+    return { status: 201 as const, ...token };
+  });
+  if (result.status === 404) return json(404, { ok: false, error: "Token not found." });
+  if (result.status === 409) {
+    return json(409, { ok: false, error: "This link was already revoked or regenerated. Refresh the token registry." });
   }
-
-  const { raw, id: newId } = await createAccessToken({
-    label: old.label,
-    expiresAt,
-    createdByAdminId: ctx.admin.id,
-  });
-
-  await audit({
-    adminId: ctx.admin.id,
-    action: "token.regenerated",
-    entityType: "access_token",
-    entityId: newId,
-    metadata: { label: old.label, revokedTokenId: old.id, expiresAt: expiresAt.toISOString() },
-    ip: clientIp(req),
-  });
 
   return json(201, {
     ok: true,
-    id: newId,
-    rawToken: raw,
-    url: `${config.appUrl}/?access_token=${raw}`,
+    id: result.id,
+    rawToken: result.raw,
+    url: `${config.appUrl}/?access_token=${result.raw}`,
   });
 }

@@ -26,28 +26,34 @@ export async function PATCH(
   const id = Number.parseInt(rawId, 10);
   if (!Number.isInteger(id) || id <= 0) return json(400, { ok: false, error: "Invalid token id." });
 
-  const rows = await db
-    .select()
-    .from(applicationAccessTokens)
-    .where(eq(applicationAccessTokens.id, id))
-    .limit(1);
-  const token = rows[0];
-  if (!token) return json(404, { ok: false, error: "Token not found." });
-  if (token.revokedAt) return json(409, { ok: false, error: "Token is already revoked." });
+  const result = await db.transaction(async (tx) => {
+    const rows = await tx
+      .select()
+      .from(applicationAccessTokens)
+      .where(eq(applicationAccessTokens.id, id))
+      .for("update")
+      .limit(1);
+    const token = rows[0];
+    if (!token) return { status: 404 as const };
+    if (token.revokedAt) return { status: 409 as const };
 
-  await db
-    .update(applicationAccessTokens)
-    .set({ revokedAt: new Date() })
-    .where(eq(applicationAccessTokens.id, id));
+    await tx
+      .update(applicationAccessTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(applicationAccessTokens.id, id));
 
-  await audit({
-    adminId: ctx.admin.id,
-    action: "token.revoked",
-    entityType: "access_token",
-    entityId: id,
-    metadata: { label: token.label },
-    ip: clientIp(req),
+    await audit({
+      adminId: ctx.admin.id,
+      action: "token.revoked",
+      entityType: "access_token",
+      entityId: id,
+      metadata: { label: token.label },
+      ip: clientIp(req),
+    }, tx);
+    return { status: 200 as const };
   });
 
+  if (result.status === 404) return json(404, { ok: false, error: "Token not found." });
+  if (result.status === 409) return json(409, { ok: false, error: "Token is already revoked." });
   return json(200, { ok: true });
 }

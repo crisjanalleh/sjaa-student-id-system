@@ -24,6 +24,7 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -105,6 +106,7 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
     e.target.value = "";
     if (!file || requestInFlight.current) return;
     setError("");
+    setWarning("");
     if (!["image/jpeg", "image/png"].includes(file.type)) {
       setError("Only JPG or PNG images are allowed.");
       return;
@@ -123,8 +125,9 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
         headers: { "x-csrf-token": csrfToken },
         body: fd,
       });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; warning?: string | null } | null;
       if (res.ok && data?.ok) {
+        setWarning(data.warning || "");
         router.refresh();
       } else {
         setError(data?.error || "Replacement failed. Please try again.");
@@ -147,8 +150,20 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
           <span>{error}</span>
         </div>
       )}
+      {warning && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950" role="status">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>{warning}</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
+        {status === "claimed" && (
+          <span className="text-muted inline-flex items-center gap-1.5 text-xs" role="status">
+            <CheckCircle2 className="h-4 w-4" style={{ color: "var(--success)" }} aria-hidden />
+            No action needed — the student ID has been collected.
+          </span>
+        )}
         {status === "pending" && (
           <>
             <button type="button" className="btn btn-primary btn-sm" onClick={approve} disabled={Boolean(busy)}>

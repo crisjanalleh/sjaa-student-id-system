@@ -16,7 +16,7 @@ const globalForDb = globalThis as typeof globalThis & {
   __sjaaMariaDbPool?: ReturnType<typeof createPool>;
 };
 
-export const pool =
+const pool =
   globalForDb.__sjaaMariaDbPool ??
   createPool({
     host: parsedUrl.hostname,
@@ -29,8 +29,22 @@ export const pool =
     connectionLimit: 10,
   });
 
+if (!globalForDb.__sjaaMariaDbPool) {
+  pool.pool.on("connection", (connection) => {
+    connection.query("SET time_zone = '+00:00'", (error) => {
+      if (!error) return;
+      console.error(
+        "Could not set the database session timezone to UTC:",
+        error.message,
+      );
+      connection.destroy();
+    });
+  });
+}
+
 if (process.env.NODE_ENV !== "production") {
   globalForDb.__sjaaMariaDbPool = pool;
 }
 
+export { pool };
 export const db = drizzle(pool);

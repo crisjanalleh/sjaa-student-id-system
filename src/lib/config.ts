@@ -14,14 +14,22 @@ const DEV_SECRET =
   "dev-only-insecure-secret-set-APP_SECRET-in-production-0123456789abcdef";
 
 const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
+const configuredAppSecret = process.env.APP_SECRET;
+const isDevSecret =
+  !configuredAppSecret || configuredAppSecret.length < 32;
+
+if (process.env.NODE_ENV === "production" && isDevSecret) {
+  throw new Error("APP_SECRET must be configured with at least 32 characters in production.");
+}
 
 export const config = {
   appUrl,
+  timeZone: process.env.APP_TIMEZONE || "Asia/Manila",
   appSecret:
-    process.env.APP_SECRET && process.env.APP_SECRET.length >= 32
-      ? process.env.APP_SECRET
+    configuredAppSecret && configuredAppSecret.length >= 32
+      ? configuredAppSecret
       : DEV_SECRET,
-  isDevSecret: !process.env.APP_SECRET || process.env.APP_SECRET.length < 32,
+  isDevSecret,
   isProduction: process.env.NODE_ENV === "production",
   trustedProxy: process.env.TRUSTED_PROXY === "true",
   secureCookies: appUrl.startsWith("https://"),
@@ -29,7 +37,7 @@ export const config = {
   sessionAbsoluteHours: intEnv("SESSION_ABSOLUTE_TIMEOUT", 12),
   publicTokenDefaultTtlDays: intEnv("PUBLIC_TOKEN_DEFAULT_TTL", 30),
   maxUploadMb: intEnv("MAX_UPLOAD_MB", 5),
-  submissionsPerHour: intEnv("RATE_LIMIT_SUBMISSIONS_PER_HOUR", 3),
+  submissionsPerHour: intEnv("RATE_LIMIT_SUBMISSIONS_PER_HOUR", 10),
   setupSecret: process.env.SETUP_SECRET || "",
   privacyNotice:
     process.env.PRIVACY_NOTICE ||

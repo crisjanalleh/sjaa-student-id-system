@@ -2,9 +2,11 @@ import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { applicationAccessTokens } from "@/db/schema";
+import { audit } from "@/lib/audit";
 import { requireAdminApi } from "@/lib/auth";
 import { config } from "@/lib/config";
 import { decryptAccessToken, safeEqual, sha256Hex } from "@/lib/crypto";
+import { clientIp } from "@/lib/request";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +14,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { error } = await requireAdminApi();
+  const { ctx, error } = await requireAdminApi();
   if (error) return error;
 
   const { id: rawId } = await params;
@@ -46,6 +48,15 @@ export async function GET(
       error: "The saved link could not be verified. Regenerate it to create a new shareable link.",
     }, { status: 409 });
   }
+
+  await audit({
+    adminId: ctx.admin.id,
+    action: "token.revealed",
+    entityType: "access_token",
+    entityId: id,
+    metadata: { label: token.label },
+    ip: clientIp(_request),
+  });
 
   return NextResponse.json(
     { ok: true, url: `${config.appUrl}/?access_token=${raw}` },

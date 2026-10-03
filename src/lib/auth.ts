@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
@@ -23,6 +23,24 @@ function cookieBase() {
     secure: config.secureCookies,
     path: "/",
   };
+}
+
+let lastSessionCleanupAt = 0;
+
+function cleanupExpiredSessionsOccasionally(): void {
+  const now = Date.now();
+  if (now - lastSessionCleanupAt < 60 * 60 * 1000) return;
+  lastSessionCleanupAt = now;
+
+  void Promise.all([
+    db.delete(adminSessions).where(lt(adminSessions.expiresAt, new Date(now))),
+    db.delete(formSessions).where(lt(formSessions.expiresAt, new Date(now))),
+  ]).catch((error: unknown) => {
+    console.error(
+      "Expired session cleanup failed:",
+      error instanceof Error ? error.message : error,
+    );
+  });
 }
 
 
@@ -53,6 +71,7 @@ export async function createAdminSession(
     expiresAt,
     lastSeenAt: now,
   });
+  cleanupExpiredSessionsOccasionally();
   void req;
   void ip;
   return token;
@@ -162,6 +181,7 @@ export async function createFormSession(
     ipHash,
     expiresAt,
   });
+  cleanupExpiredSessionsOccasionally();
   return { raw, maxAgeSeconds: Math.floor((expiresAt.getTime() - now) / 1000) };
 }
 

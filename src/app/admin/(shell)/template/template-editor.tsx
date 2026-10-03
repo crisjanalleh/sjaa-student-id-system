@@ -100,10 +100,12 @@ export default function TemplateEditor({
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(initialVersion);
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(initial));
   const [staleVersion, setStaleVersion] = useState(false);
   const [adjustmentPanel, setAdjustmentPanel] = useState<"signature" | "layout" | null>(null);
   const requestInFlight = useRef(false);
   const signatureInput = useRef<HTMLInputElement>(null);
+  const hasUnsavedChanges = JSON.stringify(values) !== savedSnapshot;
 
   const set = <K extends keyof Values>(key: K, value: Values[K]) => {
     setValues((v) => ({ ...v, [key]: value }));
@@ -164,13 +166,19 @@ export default function TemplateEditor({
         | { ok?: boolean; version?: number; signature?: string | null; error?: string; errors?: Record<string, string> }
         | null;
       if (res.ok && data?.ok) {
-        if (typeof data.version === "number") setVersion(data.version);
-        if (data.signature !== undefined) {
-          setValues((current) => ({
-            ...current,
-            designSettings: { ...current.designSettings, signatorySignature: data.signature ?? null },
-          }));
-        }
+        const savedVersion = typeof data.version === "number" ? data.version : version + 1;
+        const savedValues: Values = {
+          ...values,
+          designSettings: {
+            ...values.designSettings,
+            signatorySignature: data.signature === undefined
+              ? values.designSettings.signatorySignature
+              : data.signature,
+          },
+        };
+        setVersion(savedVersion);
+        setValues(savedValues);
+        setSavedSnapshot(JSON.stringify(savedValues));
         setSaved(true);
         router.refresh();
         return;
@@ -206,7 +214,7 @@ export default function TemplateEditor({
           )}
           {saved && (
             <div className="mb-3 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold" style={{ borderColor: "var(--success)", color: "var(--success)" }} role="status">
-              <CheckCircle2 className="h-4 w-4" aria-hidden /> Template saved — a new version was recorded.
+              <CheckCircle2 className="h-4 w-4" aria-hidden /> Template version {version} saved successfully.
             </div>
           )}
 
@@ -454,9 +462,9 @@ export default function TemplateEditor({
             </button>
           </details>
 
-          <button type="submit" className="btn btn-gold w-full" disabled={busy}>
+          <button type="submit" className="btn btn-gold w-full" disabled={busy || !hasUnsavedChanges}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-            Save Template
+            {busy ? "Saving template…" : hasUnsavedChanges ? "Save Template" : "All Changes Saved"}
           </button>
         </section>
 

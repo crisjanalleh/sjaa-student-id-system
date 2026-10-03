@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { studentApplications } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
-import { queueAndDeliver } from "@/lib/mailer";
+import { deliverNotification, queueNotification } from "@/lib/mailer";
 import { clientIp } from "@/lib/request";
 import { cleanText } from "@/lib/validate";
 
@@ -129,21 +129,21 @@ export async function POST(
         },
         tx,
       );
-      return { status: 200 as const, app };
+      const notificationId = await queueNotification({
+        applicationId: app.id,
+        type: "rejection_notice",
+        recipientEmail: app.email || "",
+      }, tx);
+      return { status: 200 as const, notificationId };
     });
     if (result.status === 404) return json(404, { ok: false, error: "Application not found." });
-    if (result.status === 409 || !result.app) {
+    if (result.status === 409) {
       return json(409, { ok: false, error: `Only pending applications can be rejected (current status: ${result.app?.status}).` });
     }
 
-    // Post-commit: queue + attempt the rejection email. Failures stay
-    // observable in the notification log for retry — they never roll back
-    // the business state.
-    await queueAndDeliver({
-      applicationId: result.app.id,
-      type: "rejection_notice",
-      recipientEmail: result.app.email || "",
-    });
+    // Delivery happens after the state, audit event, and notification row
+    // have committed together; SMTP failures remain visible for retry.
+    await deliverNotification(result.notificationId);
 
     return json(200, { ok: true, status: "rejected" });
   }

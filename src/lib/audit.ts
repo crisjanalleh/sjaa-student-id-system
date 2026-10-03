@@ -12,6 +12,7 @@ export const AUDIT_ACTIONS = [
   "token.created",
   "token.revoked",
   "token.regenerated",
+  "token.revealed",
   "application.submitted",
   "application.edited",
   "application.approved",
@@ -23,6 +24,7 @@ export const AUDIT_ACTIONS = [
   "batch.created",
   "notification.queued",
   "notification.retried",
+  "notification.acknowledged",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -5,7 +5,11 @@ import { studentApplications } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { PhotoError, deletePhoto, processStudentPhoto, readPhoto } from "@/lib/photos";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readFormDataBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,8 +56,20 @@ export async function GET(
         "content-disposition": "inline",
       },
     });
-  } catch {
-    return json(404, { ok: false, error: "Photo file not found." });
+  } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      err.code === "ENOENT"
+    ) {
+      return json(404, { ok: false, error: "Photo file not found." });
+    }
+    console.error(
+      "Student photo could not be read:",
+      err instanceof Error ? err.message : err,
+    );
+    return json(500, { ok: false, error: "The photo could not be loaded. Please try again or contact the system administrator." });
   }
 }
 
@@ -74,8 +90,15 @@ export async function PUT(
   const id = Number.parseInt(rawId, 10);
   if (!Number.isInteger(id) || id <= 0) return json(400, { ok: false, error: "Invalid application id." });
 
-  const formData = await req.formData().catch(() => null);
-  if (!formData) return json(400, { ok: false, error: "Malformed request." });
+  let formData: FormData;
+  try {
+    formData = await readFormDataBounded(req, 7 * 1024 * 1024);
+  } catch (err) {
+    if (err instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "The request is too large. Replacement photos must be 5 MB or smaller." });
+    }
+    return json(400, { ok: false, error: "Malformed request." });
+  }
   const photo = formData.get("photo");
   if (!(photo instanceof File) || photo.size === 0) {
     return json(422, { ok: false, error: "A replacement photo file is required." });
@@ -131,6 +154,9 @@ export async function PUT(
       tx,
     );
     return { status: 200 as const, app };
+  }).catch(async (err: unknown) => {
+    await deletePhoto(processed.storageKey);
+    throw err;
   });
 
   if (result.status === 404) {
@@ -146,6 +172,15 @@ export async function PUT(
   }
 
   // Remove the old file only after the transaction commits.
-  await deletePhoto(result.app?.photoStorageKey ?? null);
-  return json(200, { ok: true, status: "pending" });
+  let warning: string | null = null;
+  try {
+    await deletePhoto(result.app.photoStorageKey);
+  } catch (err) {
+    console.error(
+      "Previous student photo cleanup failed:",
+      err instanceof Error ? err.message : err,
+    );
+    warning = "The replacement was saved, but the previous photo could not be removed. Contact the system administrator.";
+  }
+  return json(200, { ok: true, status: "pending", warning });
 }

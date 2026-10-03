@@ -27,7 +27,7 @@ have accounts or sign in.
   authorized signatory image, adjustable front-card photo/name layout, and
   paginated duplex batches.
 - Rejection and ready-for-claiming email notifications with a retryable admin
-  notification log.
+  notification log and student receipt acknowledgement.
 - Audit history, session and CSRF protection, request throttling, and duplicate
   application protection.
 - Student-facing application forms stay in a light theme; track/strand is
@@ -133,6 +133,13 @@ Copy the output into `APP_SECRET`. Keep `.env` private; never commit credentials
 or real secrets to GitHub. The `.env.example` file is a template and is not
 loaded automatically by the app.
 
+`APP_TIMEZONE` controls how dates and times are displayed; it defaults to
+`Asia/Manila`. Database connections use UTC so database defaults, expiry checks,
+and application timestamps remain consistent. A production build requires a
+configured `APP_SECRET` of at least 32 characters. Existing records are not
+rewritten by the UTC handling change; review historical timestamps before
+considering any data conversion.
+
 ### 5. Create the application tables
 
 Keep XAMPP's MySQL service running. In the VS Code terminal, from the project
@@ -194,6 +201,26 @@ viewed or shared again. Keep `APP_SECRET` unchanged and backed up: encrypted
 token links cannot be decrypted if that secret is lost or rotated. The
 migration is safe to repeat.
 
+For installations adding acknowledgement tracking to student email
+notifications, run this additive migration once:
+
+```powershell
+npm run db:migrate:notification-acknowledgement
+```
+
+It adds a hashed acknowledgement token and timestamp to notification logs.
+Existing notifications remain unchanged. The migration is safe to repeat.
+
+For existing installations adding periodic cleanup of expired administrator and
+student-form sessions, add the expiry indexes once:
+
+```powershell
+npm run db:migrate:session-expiry-indexes
+```
+
+The migration is additive and safe to repeat. New installations receive these
+indexes through `drizzle-kit push`.
+
 Administrators can access their profile, theme toggle, and sign-out controls
 from the floating **Workspace** menu. Student application forms follow the
 student device&rsquo;s light/dark preference and remain responsive on mobile.
@@ -249,6 +276,10 @@ The deployment must provide:
 - HTTPS, a strong private `APP_SECRET`, and production environment variables
   for the database, SMTP, session settings, and `APP_URL`. Never put `.env`,
   database credentials, mail app passwords, or real student records in GitHub.
+- `TRUSTED_PROXY=true` only if the hosting reverse proxy safely sets or
+  overwrites `X-Forwarded-For`. The submission limit defaults to 10 per
+  observed IP per hour; increase `RATE_LIMIT_SUBMISSIONS_PER_HOUR` if many
+  students share the school's public network address.
 
 When the deployment provides a stable address (for example,
 `https://your-app.example.com`):
@@ -284,6 +315,14 @@ creates a **print batch** (ready-for-claiming message). Submission by itself
 does not send a confirmation email. A missing recipient address also prevents
 delivery. All attempts and errors are recorded under the admin area's
 **Notifications** page.
+
+Delivered decision and collection messages also include an **Acknowledge
+receipt** link. Students must open its confirmation page and explicitly press
+**Confirm receipt**; automatic email link previews do not record an
+acknowledgement. Administrators can see the confirmation status and time in
+Notifications and in the application's notification history. On an existing
+installation, first run the acknowledgement database migration described in
+the database section above.
 
 In `.env`, set the SMTP details supplied by your email provider:
 
@@ -337,6 +376,9 @@ messages.
 5. Return to the admin window and open **Applications**.
 6. Open the test application and approve or reject it. A rejection should create
    a notification event; with SMTP configured, it should deliver an email.
+   Open the test email and use **Acknowledge receipt**, then confirm on the page.
+   The administrator should see the receipt status in Notifications and the
+   application's notification history.
 7. In **ID Template**, optionally upload an authorized signatory&rsquo;s PNG/JPG
    signature image and adjust the student-name/photo size and position using the
    collapsed **Optional card layout adjustments** controls. The signature is a

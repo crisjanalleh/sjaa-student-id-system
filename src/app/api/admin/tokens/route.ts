@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@/db";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { config } from "@/lib/config";
@@ -49,19 +50,21 @@ export async function POST(req: Request) {
     expiresAt = new Date(Date.now() + config.publicTokenDefaultTtlDays * 24 * 60 * 60 * 1000);
   }
 
-  const { raw, id } = await createAccessToken({
-    label,
-    expiresAt,
-    createdByAdminId: ctx.admin.id,
-  });
-
-  await audit({
-    adminId: ctx.admin.id,
-    action: "token.created",
-    entityType: "access_token",
-    entityId: id,
-    metadata: { label, expiresAt: expiresAt.toISOString() },
-    ip: clientIp(req),
+  const { raw, id } = await db.transaction(async (tx) => {
+    const token = await createAccessToken({
+      label,
+      expiresAt,
+      createdByAdminId: ctx.admin.id,
+    }, tx);
+    await audit({
+      adminId: ctx.admin.id,
+      action: "token.created",
+      entityType: "access_token",
+      entityId: token.id,
+      metadata: { label, expiresAt: expiresAt.toISOString() },
+      ip: clientIp(req),
+    }, tx);
+    return token;
   });
 
   return json(201, {

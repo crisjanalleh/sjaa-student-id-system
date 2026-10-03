@@ -105,8 +105,8 @@ export async function POST(req: Request) {
         .resize({ width: 640, height: 240, fit: "inside", withoutEnlargement: true })
         .png({ compressionLevel: 9 })
         .toBuffer();
-      if (normalized.length > 20_000) {
-        return json(422, { ok: false, error: "Signature image is too detailed. Crop it to the signature and try again." });
+      if (normalized.length > 120_000) {
+        return json(422, { ok: false, error: "The processed signature is too large. Crop it more closely or export a smaller transparent PNG." });
       }
       signatorySignature = `data:image/png;base64,${normalized.toString("base64")}`;
     } catch {

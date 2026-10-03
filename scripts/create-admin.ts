@@ -84,17 +84,18 @@ async function main() {
       process.exit(1);
     }
 
-    const rows = await db
-      .insert(adminUsers)
-      .values({ username, fullName, email, passwordHash: hashPassword(password) })
-      .$returningId();
-
-    await audit({
-      adminId: rows[0].id,
-      action: "admin.setup_completed",
-      entityType: "admin",
-      entityId: rows[0].id,
-      metadata: { method: scripted ? "cli-scripted" : "cli" },
+    await db.transaction(async (tx) => {
+      const rows = await tx
+        .insert(adminUsers)
+        .values({ username, fullName, email, passwordHash: hashPassword(password) })
+        .$returningId();
+      await audit({
+        adminId: rows[0].id,
+        action: "admin.setup_completed",
+        entityType: "admin",
+        entityId: rows[0].id,
+        metadata: { method: scripted ? "cli-scripted" : "cli" },
+      }, tx);
     });
 
     stdout.write(`\nAdministrator "${username}" created successfully.\n`);
