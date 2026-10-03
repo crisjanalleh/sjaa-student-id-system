@@ -1,0 +1,3 @@
+# Private student photos — never commit uploaded files.
+*
+!.gitignore

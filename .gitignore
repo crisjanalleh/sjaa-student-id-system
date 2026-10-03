@@ -1,0 +1,25 @@
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+build/
+coverage/
+tsconfig.tsbuildinfo
+
+# Local uploaded student photos
+storage/photos/*
+!storage/photos/.gitignore
+
+# Logs and local tooling
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.vercel/
+.idea/
+.vscode/*
+!.vscode/extensions.json
