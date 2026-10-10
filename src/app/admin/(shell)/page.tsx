@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, isNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, isNull, lt, or, sql } from "drizzle-orm";
 import { LayoutDashboard, QrCode } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
@@ -8,8 +8,9 @@ import {
   auditLogs,
   studentApplications,
 } from "@/db/schema";
+import IssuanceAnalytics, { type AnalyticsMonth } from "@/components/issuance-analytics";
 import StatusBadge from "@/components/status-badge";
-import { auditActionLabel, auditActionStyle } from "@/lib/audit-presentation";
+import { auditActionLabel } from "@/lib/audit-presentation";
 import { formatDateTime, fullName } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,9 @@ export default async function DashboardPage({
   const activityOrder = first(params.activityOrder) === "oldest" ? "oldest" : "newest";
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const [rows, recentApplications, recentAudit, [{ activeTokenCount }], [{ monthCount }]] =
+  const currentYear = now.getUTCFullYear();
+  const requestedYear = Number.parseInt(first(params.year), 10);
+  const [rows, recentApplications, recentAudit, [{ activeTokenCount }], [{ monthCount }], [{ firstYear }]] =
     await Promise.all([
       db
         .select({ status: studentApplications.status, count: sql<number>`count(*)` })
@@ -64,42 +67,57 @@ export default async function DashboardPage({
             gte(studentApplications.createdAt, monthStart),
           ),
         ),
+      db
+        .select({ firstYear: sql<number | null>`MIN(YEAR(${studentApplications.createdAt}))` })
+        .from(studentApplications)
+        .where(isNull(studentApplications.deletedAt)),
     ]);
 
-  const counts: Record<string, number> = {
-    total: 0, pending: 0, approved: 0, rejected: 0, printed: 0, claimed: 0,
-  };
+  const earliestYear = firstYear ? Math.min(Number(firstYear), currentYear) : currentYear;
+  const year = Number.isFinite(requestedYear)
+    ? Math.min(currentYear, Math.max(earliestYear, requestedYear))
+    : currentYear;
+  const yearRows = await db
+    .select({
+      month: sql<number>`MONTH(${studentApplications.createdAt})`,
+      status: studentApplications.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(studentApplications)
+    .where(
+      and(
+        isNull(studentApplications.deletedAt),
+        gte(studentApplications.createdAt, new Date(Date.UTC(year, 0, 1))),
+        lt(studentApplications.createdAt, new Date(Date.UTC(year + 1, 0, 1))),
+      ),
+    )
+    .groupBy(sql`MONTH(${studentApplications.createdAt})`, studentApplications.status);
+
+  const months: AnalyticsMonth[] = Array.from({ length: 12 }, (_, i) => ({
+    label: new Date(Date.UTC(year, i, 1)).toLocaleString("en-US", { month: "short", timeZone: "UTC" }),
+    future: year === currentYear && i > now.getUTCMonth(),
+    total: 0,
+    byStatus: { claimed: 0, printed: 0, approved: 0, pending: 0, rejected: 0 },
+  }));
+  for (const r of yearRows) {
+    const m = months[Number(r.month) - 1];
+    if (!m) continue;
+    m.byStatus[r.status] += Number(r.count);
+    m.total += Number(r.count);
+  }
+
+  const counts = { total: 0, pending: 0, approved: 0, rejected: 0, printed: 0, claimed: 0 };
   for (const r of rows) {
     counts[r.status] = Number(r.count);
     counts.total += Number(r.count);
   }
   const claimedPercent = counts.total ? Math.round((counts.claimed / counts.total) * 100) : 0;
-  const statusBreakdown = [
-    { key: "pending", label: "Pending review", color: "#d97706", description: "Needs review", action: true },
-    { key: "approved", label: "Approved", color: "#16a34a", description: "Ready to print", action: true },
-    { key: "printed", label: "Printed", color: "#2563eb", description: "Awaiting collection", action: false },
-    { key: "claimed", label: "ID Claimed", color: "#64748b", description: "Complete", action: false },
-    { key: "rejected", label: "Not approved", color: "#dc2626", description: "Closed", action: false },
-  ] as const;
-  let chartOffset = 0;
-  const chartSegments = statusBreakdown.map(({ key, color }) => {
-    const percentage = counts.total ? (counts[key] / counts.total) * 100 : 0;
-    const segment = { key, color, start: chartOffset, end: chartOffset + percentage };
-    chartOffset += percentage;
-    return segment;
-  });
-  const chartBackground = counts.total
-    ? `conic-gradient(from -90deg, ${chartSegments.map(({ color, start, end }) => `${color} ${start}% ${end}%`).join(", ")})`
-    : "var(--line)";
-  const chartDescription = counts.total
-    ? `Status distribution: ${statusBreakdown.map(({ key, label }) => `${label} ${counts[key]}`).join(", ")}`
-    : "Application status distribution: no applications yet";
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="page-head">
         <div>
-          <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
+          <h1 className="flex items-center gap-2 font-extrabold">
             <LayoutDashboard className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
             Dashboard
           </h1>
@@ -110,70 +128,15 @@ export default async function DashboardPage({
         </Link>
       </div>
 
-      <section className="card mb-6 overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4" style={{ borderColor: "var(--line)" }}>
-          <div>
-            <h2 className="text-sm font-bold">ID issuance overview</h2>
-            <p className="text-muted mt-1 text-xs">Select a status to open its application records.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <Link href="/admin/applications" className="no-underline">
-              <span className="text-muted block text-[11px] font-semibold uppercase tracking-wide">All applications</span>
-              <span className="text-xl font-extrabold tabular-nums">{counts.total}</span>
-            </Link>
-            <div>
-              <span className="text-muted block text-[11px] font-semibold uppercase tracking-wide">Received this month</span>
-              <span className="text-xl font-extrabold tabular-nums">{Number(monthCount)}</span>
-            </div>
-            <div>
-              <span className="text-muted block text-[11px] font-semibold uppercase tracking-wide">Cards collected</span>
-              <span className="text-xl font-extrabold tabular-nums">{claimedPercent}%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5">
-          <div className="grid items-center gap-6 md:grid-cols-[minmax(180px,0.75fr)_minmax(0,1.5fr)]">
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-xs font-semibold">Application status distribution</p>
-              <div
-                className="h-44 w-44 rounded-full shadow-sm ring-1 ring-[var(--line)]"
-                role="img"
-                aria-label={chartDescription}
-                style={{ background: chartBackground }}
-              >
-              </div>
-            </div>
-            <div className="divide-y" style={{ borderColor: "var(--line)" }}>
-              {statusBreakdown.map(({ key, label, color, description, action }) => {
-                const count = counts[key];
-                const percent = counts.total ? Math.round((count / counts.total) * 100) : 0;
-                return (
-                  <Link
-                    key={key}
-                    href={`/admin/applications?status=${key}`}
-                    className="flex min-h-12 items-center gap-3 py-2.5 no-underline transition-colors hover:bg-[var(--bg)]"
-                    aria-label={`${label}: ${count} records, ${percent} percent. ${count > 0 && action ? "Action needed." : description}`}
-                  >
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-xs font-semibold">{label}</span>
-                      <span className="text-muted block text-[10px]">{description}</span>
-                    </span>
-                    {action && count > 0 && (
-                      <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: "#fff7ed", color: "#9a3412" }}>
-                        Action needed
-                      </span>
-                    )}
-                    <span className="w-10 text-right text-sm font-bold tabular-nums">{count}</span>
-                    <span className="text-muted w-11 text-right text-xs tabular-nums">{percent}%</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
+      <IssuanceAnalytics
+        counts={counts}
+        monthCount={Number(monthCount)}
+        claimedPercent={claimedPercent}
+        year={year}
+        earliestYear={earliestYear}
+        currentYear={currentYear}
+        months={months}
+      />
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Recent applications */}

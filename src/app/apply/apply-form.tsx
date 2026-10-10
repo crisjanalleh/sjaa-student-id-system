@@ -22,7 +22,8 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
-import { BLOOD_TYPES, GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import SelectField from "@/components/select-field";
 
 type FieldErrors = Record<string, string>;
 
@@ -305,7 +306,6 @@ const EMPTY_VALUES: Record<string, string> = {
   contactNumber: "",
   emergencyContactName: "",
   emergencyContactPhone: "",
-  bloodType: "",
   consent: "",
 };
 
@@ -656,7 +656,7 @@ export default function ApplyForm({
             <label className="lbl" htmlFor="f_gradeLevelSel">
               Grade Level <span style={{ color: "var(--danger)" }}>*</span>
             </label>
-            <select
+            <SelectField
               id="f_gradeLevelSel"
               className="inp"
               value={values.gradeLevel}
@@ -669,7 +669,7 @@ export default function ApplyForm({
                   {g}
                 </option>
               ))}
-            </select>
+            </SelectField>
             {errors.gradeLevel && (
               <p className="field-error" role="alert">
                 {errors.gradeLevel}
@@ -680,7 +680,7 @@ export default function ApplyForm({
             <label className="lbl" htmlFor="f_trackStrand">
               Track / Strand {isShs ? <span style={{ color: "var(--danger)" }}>*</span> : <span className="normal-case">(available for Grade 11–12)</span>}
             </label>
-            <select
+            <SelectField
               id="f_trackStrand"
               className="inp"
               value={values.trackStrand}
@@ -694,7 +694,7 @@ export default function ApplyForm({
                   {t}
                 </option>
               ))}
-            </select>
+            </SelectField>
             {errors.trackStrand && (
               <p className="field-error" role="alert">
                 {errors.trackStrand}
@@ -734,31 +734,6 @@ export default function ApplyForm({
             placeholder: "e.g. 0917 123 4567",
             half: true,
           })}
-          <div>
-            <label className="lbl" htmlFor="f_bloodType">
-              Student Blood Type <span className="normal-case">(optional)</span>
-            </label>
-            <p className="text-muted mb-1 text-xs">Enter the applicant student&rsquo;s blood type, not the emergency contact&rsquo;s.</p>
-            <select
-              id="f_bloodType"
-              className="inp"
-              value={values.bloodType}
-              onChange={set("bloodType")}
-              aria-invalid={Boolean(errors.bloodType)}
-            >
-              <option value="">Select blood type…</option>
-              {BLOOD_TYPES.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-            {errors.bloodType && (
-              <p className="field-error" role="alert">
-                {errors.bloodType}
-              </p>
-            )}
-          </div>
         </div>
       </section>
 

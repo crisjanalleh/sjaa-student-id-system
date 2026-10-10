@@ -12,9 +12,11 @@ type Values = AdminTemplateConfig;
 function ResponsiveCardPreview({
   variant,
   template,
+  gradeLevel,
 }: {
   variant: "front" | "back";
   template: AdminTemplateConfig;
+  gradeLevel: string;
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -35,7 +37,7 @@ function ResponsiveCardPreview({
 
   return (
     <div ref={stage} className="flex min-w-0 justify-center overflow-hidden py-1" style={{ minHeight: cardHeightMm * 3.7795 * scale + 8 }}>
-      <ScaledIdCard scale={scale} variant={variant} data={SAMPLE_CARD_DATA} template={template} />
+      <ScaledIdCard scale={scale} variant={variant} data={{ ...SAMPLE_CARD_DATA, gradeLevel }} template={template} />
     </div>
   );
 }
@@ -99,6 +101,8 @@ export default function TemplateEditor({
   const [serverError, setServerError] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [previewLevel, setPreviewLevel] = useState<"shs" | "jhs">("shs");
+  const previewGrade = previewLevel === "shs" ? "Grade 11" : "Grade 9";
   const [version, setVersion] = useState(initialVersion);
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ ...initial, orientation: "portrait" }));
   const [staleVersion, setStaleVersion] = useState(false);
@@ -219,13 +223,6 @@ export default function TemplateEditor({
           )}
 
           <div className="mb-4 flex flex-col gap-2.5">
-            <Toggle
-              id="tgl_blood"
-              label="Blood Type"
-              description="Show the blood-type chip on the card back."
-              checked={values.showBloodType}
-              onChange={(v) => set("showBloodType", v)}
-            />
             <Toggle
               id="tgl_track"
               label="Track / Strand"
@@ -447,18 +444,33 @@ export default function TemplateEditor({
         {/* Live preview with sample data only (no real student records). */}
         <section className="lg:col-span-3">
           <div className="card p-5">
-            <h2 className="mb-1 text-sm font-bold">Live Preview</h2>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-bold">Live Preview</h2>
+              <div className="flex gap-1" role="group" aria-label="Preview level">
+                {(["shs", "jhs"] as const).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    className={previewLevel === level ? "btn btn-gold" : "btn btn-ghost"}
+                    aria-pressed={previewLevel === level}
+                    onClick={() => setPreviewLevel(level)}
+                  >
+                    {level === "shs" ? "Senior High · 2-year" : "Junior High · 4-year"}
+                  </button>
+                ))}
+              </div>
+            </div>
             <p className="text-muted mb-5 text-xs">
               Sample data shown for layout only — actual records are never rendered here.
             </p>
             <div className="grid min-w-0 gap-5 2xl:grid-cols-2">
               <div className="min-w-0">
                 <p className="lbl">Front · {values.orientation}</p>
-                <ResponsiveCardPreview variant="front" template={values} />
+                <ResponsiveCardPreview variant="front" template={values} gradeLevel={previewGrade} />
               </div>
               <div className="min-w-0">
                 <p className="lbl">Back</p>
-                <ResponsiveCardPreview variant="back" template={values} />
+                <ResponsiveCardPreview variant="back" template={values} gradeLevel={previewGrade} />
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import { CalendarClock, Printer } from "lucide-react";
+import QuickTip from "@/components/quick-tip";
 import Link from "next/link";
 import { db } from "@/db";
 import { adminUsers, printBatchItems, printBatches, studentApplications } from "@/db/schema";
@@ -7,6 +8,7 @@ import { getAdminContext } from "@/lib/auth";
 import { formatDateTime, fullName } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import PrintSelect from "./print-select";
+import { ListCard, ListLink, Pager } from "@/components/list-card";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +72,7 @@ export default async function PrintSelectPage({
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <Printer className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Batch Printing
@@ -80,43 +82,37 @@ export default async function PrintSelectPage({
           batch records the template version used — for example at the end of each
           month — and each record can be printed exactly once.
         </p>
+        <QuickTip
+          className="mt-3"
+          items={[
+            "Tick only approved applications you are ready to print now.",
+            "Each record can be printed once, and the batch stores the template version used.",
+          ]}
+        />
       </div>
 
-      <PrintSelect key={page} applications={serialized} csrfToken={ctx!.csrfToken} />
-      {Number(totalApproved) > 0 && (
-        <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-          <span className="text-muted">
-            Showing {Math.min(Number(totalApproved), (page - 1) * PAGE_SIZE + 1)}–{Math.min(Number(totalApproved), page * PAGE_SIZE)} of {Number(totalApproved)} approved records · {PAGE_SIZE} per page
-          </span>
-          <div className="flex gap-2">
-            <Link
-              className={`btn btn-outline btn-sm ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/print?page=${page - 1}&dateOrder=${dateOrder}`}
-              aria-disabled={page <= 1}
-            >
-              Previous
-            </Link>
-            <span className="self-center text-muted">Page {page} of {totalPages}</span>
-            <Link
-              className={`btn btn-outline btn-sm ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/print?page=${page + 1}&dateOrder=${dateOrder}`}
-              aria-disabled={page >= totalPages}
-            >
-              Next
-            </Link>
-          </div>
-        </div>
-      )}
+      <ListCard className="">
+        <PrintSelect key={page} applications={serialized} csrfToken={ctx!.csrfToken} />
+        {Number(totalApproved) > 0 && (
+          <Pager
+            basePath="/admin/print"
+            params={{ dateOrder }}
+            page={page}
+            totalPages={totalPages}
+            summary={`Showing ${Math.min(Number(totalApproved), (page - 1) * PAGE_SIZE + 1)}–${Math.min(Number(totalApproved), page * PAGE_SIZE)} of ${Number(totalApproved)} approved · ${PAGE_SIZE} per page`}
+          />
+        )}
+      </ListCard>
 
-      <section className="card mt-6">
+      <ListCard className="card mt-6">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
         <h2 className="flex items-center gap-2 text-sm font-bold">
           <CalendarClock className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Recent Batches
         </h2>
-        <Link href={`/admin/print?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`} className="text-xs font-semibold no-underline" style={{ color: "var(--academic-blue)" }}>
+        <ListLink href={`/admin/print?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`} className="text-xs font-semibold no-underline" style={{ color: "var(--academic-blue)" }}>
           {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
-        </Link>
+        </ListLink>
         </div>
         {recentBatches.length === 0 ? (
           <p className="text-muted px-4 py-6 text-center text-sm">No print batches yet.</p>
@@ -156,7 +152,7 @@ export default async function PrintSelectPage({
             </table>
           </div>
         )}
-      </section>
+      </ListCard>
     </div>
   );
 }

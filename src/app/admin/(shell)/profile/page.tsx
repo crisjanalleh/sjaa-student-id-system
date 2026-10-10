@@ -19,7 +19,7 @@ export default async function AdminProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <UserRoundCog className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Administrator Profile

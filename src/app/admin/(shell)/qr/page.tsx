@@ -43,7 +43,7 @@ export default async function QrPage({
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <QrCode className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Application QR Codes

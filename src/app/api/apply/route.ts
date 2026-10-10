@@ -229,7 +229,6 @@ export async function POST(req: Request) {
           contactNumber: values.contactNumber,
           emergencyContactName: values.emergencyContactName,
           emergencyContactPhone: values.emergencyContactPhone,
-          bloodType: values.bloodType,
           photoStorageKey: photoKey,
           studentSignatureDataUrl,
           accessTokenId: ctx.accessTokenId,

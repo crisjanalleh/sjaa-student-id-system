@@ -1,9 +1,11 @@
 import { and, desc, asc, eq, isNull, like, or, sql, type SQL } from "drizzle-orm";
-import { ChevronLeft, ChevronRight, ClipboardList, Inbox, Search } from "lucide-react";
+import { ClipboardList, Inbox, Search } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
 import { studentApplications } from "@/db/schema";
 import StatusBadge from "@/components/status-badge";
+import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
+import SelectField from "@/components/select-field";
 import { APPLICATION_STATUSES, STATUS_LABELS } from "@/lib/fields";
 import { formatDateTime, fullName } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
@@ -93,21 +95,21 @@ export default async function ApplicationsPage({
     const nextDir = active && dir === "desc" ? "asc" : "desc";
     return (
       <th aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
-        <Link
+        <ListLink
           href={`/admin/applications${buildQuery({ ...baseParams, page: undefined }, { sort: key, dir: nextDir })}`}
           className="inline-flex items-center gap-1 no-underline"
           style={{ color: active ? "var(--academic-blue)" : undefined }}
         >
           {label}
           {active && <span aria-hidden>{dir === "asc" ? "▲" : "▼"}</span>}
-        </Link>
+        </ListLink>
       </th>
     );
   };
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <ClipboardList className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Applications Queue
@@ -117,9 +119,9 @@ export default async function ApplicationsPage({
         </p>
       </div>
 
-      <div className="card">
+      <ListCard>
         {/* Filters */}
-        <form method="GET" action="/admin/applications" className="flex flex-wrap items-end gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
+        <FilterForm key={`${q}|${status}`} action="/admin/applications" className="flex flex-wrap items-end gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
           <input type="hidden" name="sort" value={sort} />
           <input type="hidden" name="dir" value={dir} />
           <div className="min-w-[220px] flex-1">
@@ -139,24 +141,24 @@ export default async function ApplicationsPage({
             <label className="lbl" htmlFor="status">
               Status
             </label>
-            <select id="status" name="status" className="inp" defaultValue={status}>
+            <SelectField id="status" name="status" className="inp" defaultValue={status}>
               <option value="">All statuses</option>
               {APPLICATION_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABELS[s]}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </div>
-          <button type="submit" className="btn btn-primary">
+          <FilterSubmit>
             <Search className="h-4 w-4" aria-hidden /> Filter
-          </button>
+          </FilterSubmit>
           {(q || status) && (
-            <Link href="/admin/applications" className="btn btn-ghost">
+            <ListLink href="/admin/applications" className="btn btn-ghost">
               Clear
-            </Link>
+            </ListLink>
           )}
-        </form>
+        </FilterForm>
 
         {/* Results */}
         {apps.length === 0 ? (
@@ -210,28 +212,14 @@ export default async function ApplicationsPage({
         )}
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 text-sm">
-          <span className="text-muted text-xs">
-            {Number(total)} record{Number(total) === 1 ? "" : "s"} · Page {safePage} of {totalPages} · {PAGE_SIZE} per page
-          </span>
-          <div className="flex gap-2">
-            <Link
-              aria-disabled={safePage <= 1}
-              className={`btn btn-outline btn-sm ${safePage <= 1 ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/applications${buildQuery(baseParams, { page: String(Math.max(1, safePage - 1)) })}`}
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden /> Prev
-            </Link>
-            <Link
-              aria-disabled={safePage >= totalPages}
-              className={`btn btn-outline btn-sm ${safePage >= totalPages ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/applications${buildQuery(baseParams, { page: String(Math.min(totalPages, safePage + 1)) })}`}
-            >
-              Next <ChevronRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
-        </div>
-      </div>
+        <Pager
+          basePath="/admin/applications"
+          params={baseParams}
+          page={safePage}
+          totalPages={totalPages}
+          summary={`${Number(total)} record${Number(total) === 1 ? "" : "s"} · ${PAGE_SIZE} per page`}
+        />
+      </ListCard>
     </div>
   );
 }

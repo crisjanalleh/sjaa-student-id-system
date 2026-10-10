@@ -14,6 +14,8 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
+import { ListCard, ListLink, Pager } from "@/components/list-card";
+import SelectField from "@/components/select-field";
 
 type TokenRow = {
   id: number;
@@ -326,23 +328,23 @@ export default function QrManager({
       </div>
 
       {/* Token registry */}
-      <section className="card h-fit lg:col-span-9">
+      <ListCard className="card h-fit lg:col-span-9">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
           <h2 className="text-sm font-bold">Token Registry</h2>
-          <Link
+          <ListLink
             href={`/admin/qr?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`}
             className="text-xs font-semibold no-underline"
             style={{ color: "var(--academic-blue)" }}
           >
             {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
-          </Link>
+          </ListLink>
         </div>
         {tokens.length === 0 ? (
           <p className="text-muted px-4 py-8 text-center text-sm">
             No access tokens yet. Generate one to open the public application form.
           </p>
         ) : (
-          <div>
+          <div className="table-scroll">
             <table className="tbl qr-token-table">
               <colgroup>
                 <col className="qr-col-label" />
@@ -391,7 +393,7 @@ export default function QrManager({
                       </td>
                       <td className="qr-token-manage" data-label="Actions">
                         {s.key === "Active" ? (
-                          <select
+                          <SelectField
                             className="qr-action-select inp w-full !min-w-0 !px-2 !py-1.5 text-xs"
                             aria-label={`Actions for ${t.label}`}
                             value=""
@@ -407,7 +409,7 @@ export default function QrManager({
                             <option value="view">View / share link</option>
                             <option value="revoke">Revoke link</option>
                             <option value="regenerate">Regenerate link</option>
-                          </select>
+                          </SelectField>
                         ) : (
                           <button
                             type="button"
@@ -427,33 +429,19 @@ export default function QrManager({
             </table>
           </div>
         )}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3" style={{ borderColor: "var(--line)" }}>
-          <span className="text-muted text-xs">
-            {total === 0 ? "No records" : `Showing ${(page - 1) * ADMIN_PAGE_SIZE + 1}–${Math.min(total, page * ADMIN_PAGE_SIZE)} of ${total}`} · Page {page} of {totalPages} · {ADMIN_PAGE_SIZE} per page
-          </span>
-          <div className="flex gap-2">
-            <Link
-              className={`btn btn-outline btn-sm ${page <= 1 ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/qr?page=${page - 1}&dateOrder=${dateOrder}`}
-              aria-disabled={page <= 1}
-            >
-              Prev
-            </Link>
-            <Link
-              className={`btn btn-outline btn-sm ${page >= totalPages ? "pointer-events-none opacity-50" : ""}`}
-              href={`/admin/qr?page=${page + 1}&dateOrder=${dateOrder}`}
-              aria-disabled={page >= totalPages}
-            >
-              Next
-            </Link>
-          </div>
-        </div>
+        <Pager
+          basePath="/admin/qr"
+          params={{ dateOrder }}
+          page={page}
+          totalPages={totalPages}
+          summary={total === 0 ? "No records" : `Showing ${(page - 1) * ADMIN_PAGE_SIZE + 1}–${Math.min(total, page * ADMIN_PAGE_SIZE)} of ${total} · ${ADMIN_PAGE_SIZE} per page`}
+        />
         <p className="text-muted border-t px-4 py-3 text-[11px] leading-relaxed" style={{ borderColor: "var(--line)" }}>
           A QR token is a bearer credential: anyone holding a valid, unexpired,
           unrevoked token can open the application form. Tokens grant access to the
           form only — never to submitted records — and contain no student data. Previously created tokens that cannot be recovered must be regenerated before they can be viewed or shared.
         </p>
-      </section>
+      </ListCard>
     </div>
   );
 }

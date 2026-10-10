@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
-import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
+import { ScrollText } from "lucide-react";
 import Link from "next/link";
+import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
+import SelectField from "@/components/select-field";
 import { db } from "@/db";
 import { adminUsers, auditLogs } from "@/db/schema";
 import { AUDIT_ACTIONS } from "@/lib/audit";
@@ -83,7 +85,7 @@ export default async function AuditLogsPage({
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <ScrollText className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           Audit Logs
@@ -94,8 +96,8 @@ export default async function AuditLogsPage({
         </p>
       </div>
 
-      <div className="card">
-        <form method="GET" action="/admin/audit" className="border-b px-5 py-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--bg) 45%, var(--card))" }}>
+      <ListCard>
+        <FilterForm key={`${action}|${entity}|${from}|${to}`} action="/admin/audit" className="border-b px-5 py-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--bg) 45%, var(--card))" }}>
           <div className="mb-3">
             <h2 className="text-xs font-bold">Find an activity</h2>
             <p className="text-muted mt-1 text-xs">Choose what you are looking for, then narrow it by record type or date.</p>
@@ -104,21 +106,21 @@ export default async function AuditLogsPage({
           <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(190px,1fr)_minmax(145px,0.8fr)_minmax(145px,0.8fr)_auto]">
             <div>
               <label className="lbl" htmlFor="a_action">Activity</label>
-              <select id="a_action" name="action" className="inp w-full" defaultValue={action}>
+              <SelectField id="a_action" name="action" className="inp w-full" defaultValue={action}>
                 <option value="">All activities</option>
                 {AUDIT_ACTIONS.map((a) => (
                   <option key={a} value={a}>{auditActionLabel(a)}</option>
                 ))}
-              </select>
+              </SelectField>
             </div>
             <div>
               <label className="lbl" htmlFor="a_entity">Record type</label>
-              <select id="a_entity" name="entity" className="inp w-full" defaultValue={entity}>
+              <SelectField id="a_entity" name="entity" className="inp w-full" defaultValue={entity}>
                 <option value="">All record types</option>
                 {entityTypes.map((type) => (
                   <option key={type} value={type}>{ENTITY_LABELS[type]}</option>
                 ))}
-              </select>
+              </SelectField>
             </div>
             <div>
               <label className="lbl" htmlFor="a_from">Start date</label>
@@ -129,13 +131,13 @@ export default async function AuditLogsPage({
               <input id="a_to" name="to" type="date" className="inp w-full" defaultValue={to} />
             </div>
             <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1">
-              <button type="submit" className="btn btn-primary">Apply filters</button>
+              <FilterSubmit>Apply filters</FilterSubmit>
               {(action || entity || from || to) && (
-                <Link href="/admin/audit" className="btn btn-outline">Clear</Link>
+                <ListLink href="/admin/audit" className="btn btn-outline">Clear</ListLink>
               )}
             </div>
           </div>
-        </form>
+        </FilterForm>
 
         {rows.length === 0 ? (
           <p className="text-muted px-4 py-14 text-center text-sm">No audit entries match the current filters.</p>
@@ -145,12 +147,12 @@ export default async function AuditLogsPage({
               <thead>
                 <tr>
                   <th>
-                    <Link
+                    <ListLink
                       href={`/admin/audit${qs({ dateOrder: dateOrder === "newest" ? "oldest" : "newest" })}`}
                       className="inline-flex items-center gap-1 no-underline"
                     >
                       Timestamp {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
-                    </Link>
+                    </ListLink>
                   </th>
                   <th>Actor</th>
                   <th>Activity</th>
@@ -193,20 +195,14 @@ export default async function AuditLogsPage({
           </div>
         )}
 
-        <div className="flex items-center justify-between px-4 py-3 text-sm">
-          <span className="text-muted text-xs">
-            {Number(total)} entr{Number(total) === 1 ? "y" : "ies"} · Page {safePage} of {totalPages} · {PAGE_SIZE} per page
-          </span>
-          <div className="flex gap-2">
-            <Link className={`btn btn-outline btn-sm ${safePage <= 1 ? "pointer-events-none opacity-50" : ""}`} href={`/admin/audit${qs({ page: String(safePage - 1) })}`} aria-disabled={safePage <= 1}>
-              <ChevronLeft className="h-4 w-4" aria-hidden /> Prev
-            </Link>
-            <Link className={`btn btn-outline btn-sm ${safePage >= totalPages ? "pointer-events-none opacity-50" : ""}`} href={`/admin/audit${qs({ page: String(safePage + 1) })}`} aria-disabled={safePage >= totalPages}>
-              Next <ChevronRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
-        </div>
-      </div>
+        <Pager
+          basePath="/admin/audit"
+          params={{ action, entity, from, to, dateOrder }}
+          page={safePage}
+          totalPages={totalPages}
+          summary={`${Number(total)} entr${Number(total) === 1 ? "y" : "ies"} · ${PAGE_SIZE} per page`}
+        />
+      </ListCard>
     </div>
   );
 }

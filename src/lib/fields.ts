@@ -12,7 +12,6 @@ export const TRACK_STRANDS = [
   "HUMSS",
 ] as const;
 
-export const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"] as const;
 
 export const APPLICATION_STATUSES = [
   "pending",

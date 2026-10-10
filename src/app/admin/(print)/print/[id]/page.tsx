@@ -29,7 +29,6 @@ function cardData(a: typeof studentApplications.$inferSelect): IdCardData {
     fullNameLine: `${a.lastName.toUpperCase()}, ${a.firstName.toUpperCase()}${mi}${sfx}`,
     gradeLevel: a.gradeLevel,
     trackStrand: a.trackStrand,
-    bloodType: a.bloodType,
     emergencyContactName: a.emergencyContactName,
     emergencyContactPhone: a.emergencyContactPhone,
     address: a.address,

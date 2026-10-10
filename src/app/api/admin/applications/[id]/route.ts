@@ -78,7 +78,6 @@ export async function PATCH(
           contactNumber: values.contactNumber,
           emergencyContactName: values.emergencyContactName,
           emergencyContactPhone: values.emergencyContactPhone,
-          bloodType: values.bloodType,
           updatedAt: new Date(),
         })
         .where(eq(studentApplications.id, id));

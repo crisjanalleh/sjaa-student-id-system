@@ -30,7 +30,6 @@ export async function getTemplateConfig(executor: Executor = db): Promise<Templa
       version: 1,
       schoolYear: defaultSchoolYear(),
       orientation: "portrait" as const,
-      showBloodType: true,
       showTrackStrand: true,
       showEmergencyContact: true,
       signatoryName: "",
@@ -59,7 +58,6 @@ export function templateSnapshot(row: TemplateRow) {
   return {
     schoolYear: row.schoolYear,
     orientation: "portrait" as const,
-    showBloodType: row.showBloodType,
     showTrackStrand: row.showTrackStrand,
     showEmergencyContact: row.showEmergencyContact,
     signatoryName: row.signatoryName,
@@ -88,7 +86,6 @@ export function normalizeTemplateSnapshot(snapshot: unknown): AdminTemplateConfi
   return {
     schoolYear,
     orientation: "portrait",
-    showBloodType: record.showBloodType !== false,
     showTrackStrand: record.showTrackStrand !== false,
     showEmergencyContact: record.showEmergencyContact !== false,
     signatoryName: typeof record.signatoryName === "string" ? record.signatoryName : "",

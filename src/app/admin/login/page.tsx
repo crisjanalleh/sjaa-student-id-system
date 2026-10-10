@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { getAdminContext } from "@/lib/auth";
 import { SCHOOL } from "@/lib/config";
+import { getSchoolAddress } from "@/lib/school";
 import LoginForm from "./login-form";
 import SjaaLogo from "@/components/sjaa-logo";
-import ThemeToggle from "@/components/theme-toggle";
+import DeviceTheme from "./device-theme";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export const metadata = { title: "Administrator Sign In" };
 export default async function AdminLoginPage() {
   const ctx = await getAdminContext();
   if (ctx) redirect("/admin");
+  const address = await getSchoolAddress();
 
   return (
     <div
@@ -24,27 +26,27 @@ export default async function AdminLoginPage() {
         <section className="relative hidden flex-col justify-between overflow-hidden p-10 text-white md:flex" style={{ background: "linear-gradient(145deg, rgba(255,255,255,.08), rgba(255,255,255,.015))" }}>
           <div className="absolute -right-20 -top-16 h-64 w-64 rounded-full border" style={{ borderColor: "rgba(229,168,35,.22)" }} aria-hidden />
           <div className="absolute -right-8 -top-4 h-40 w-40 rounded-full border" style={{ borderColor: "rgba(229,168,35,.2)" }} aria-hidden />
-          <div className="relative">
-            <SjaaLogo className="mb-8 h-16 w-16 object-contain shadow-lg" priority />
+          <div className="relative flex flex-col items-center text-center">
+            <SjaaLogo className="mb-8 h-36 w-36 object-contain drop-shadow-xl" priority />
             <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#f0c75e" }}>Administration workspace</p>
             <h1 className="max-w-sm text-3xl font-extrabold leading-tight tracking-tight">{SCHOOL.name}</h1>
             <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-300">
               Manage student applications, prepare ID batches, and keep issuance records in one secure workspace.
             </p>
           </div>
-          <div className="relative border-t pt-5 text-xs leading-relaxed text-slate-300" style={{ borderColor: "rgba(255,255,255,.15)" }}>
+          <div className="relative border-t pt-5 text-center text-xs leading-relaxed text-slate-300" style={{ borderColor: "rgba(255,255,255,.15)" }}>
             <p className="font-semibold text-white">{SCHOOL.motto}</p>
-            <p className="mt-1">{SCHOOL.location} · Est. {SCHOOL.established}</p>
+            <p className="mt-1">{address}</p>
+            <p>Est. {SCHOOL.established}</p>
           </div>
         </section>
         <section className="relative flex items-center px-6 py-9 sm:px-10" style={{ background: "var(--card)", color: "var(--ink)" }}>
           <div className="w-full">
-            <div className="absolute right-4 top-4">
-              <ThemeToggle />
-            </div>
-            <div className="mb-7 md:hidden">
-              <SjaaLogo className="mb-3 h-12 w-12 object-contain" />
-              <p className="text-muted text-xs font-semibold uppercase tracking-wider">Administration workspace</p>
+            <DeviceTheme />
+            <div className="mb-7 text-center md:hidden">
+              <SjaaLogo className="mx-auto mb-3 h-24 w-24 object-contain" />
+              <p className="text-sm font-bold">{SCHOOL.name}</p>
+              <p className="text-muted mt-1 text-xs">{address}</p>
             </div>
             <div className="mb-6">
               <h2 className="text-xl font-extrabold tracking-tight">Welcome back</h2>

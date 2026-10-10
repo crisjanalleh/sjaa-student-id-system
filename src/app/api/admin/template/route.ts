@@ -140,7 +140,6 @@ export async function POST(req: Request) {
         signatoryName,
         signatoryTitle,
         designSettings: nextDesign,
-        showBloodType: bool(body.showBloodType),
         showTrackStrand: bool(body.showTrackStrand),
         showEmergencyContact: bool(body.showEmergencyContact),
         version: nextVersion,

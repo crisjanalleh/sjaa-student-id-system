@@ -3,7 +3,8 @@
 import { Loader2, PenLine, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { BLOOD_TYPES, GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import SelectField from "@/components/select-field";
 
 type Initial = Record<string, string>;
 
@@ -104,7 +105,7 @@ export default function EditDetailsForm({
           {textField("studentIdNumber", "Student ID / LRN")}
           <div>
             <label className="lbl" htmlFor="edit_gradeLevel">Grade Level</label>
-            <select id="edit_gradeLevel" className="inp" value={values.gradeLevel} onChange={set("gradeLevel")}>
+            <SelectField id="edit_gradeLevel" className="inp" value={values.gradeLevel} onChange={set("gradeLevel")}>
               <option value="">Select…</option>
               {values.gradeLevel && !(GRADE_LEVELS as readonly string[]).includes(values.gradeLevel) && (
                 <option value={values.gradeLevel}>Existing record: {values.gradeLevel} (select a current grade)</option>
@@ -112,7 +113,7 @@ export default function EditDetailsForm({
               {GRADE_LEVELS.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
-            </select>
+            </SelectField>
             {errors.gradeLevel && <p className="field-error" role="alert">{errors.gradeLevel}</p>}
           </div>
           {textField("firstName", "First Name")}
@@ -121,26 +122,16 @@ export default function EditDetailsForm({
           {textField("suffix", "Suffix (optional)")}
           <div>
             <label className="lbl" htmlFor="edit_trackStrand">Track / Strand</label>
-            <select id="edit_trackStrand" className="inp" value={isShs && (TRACK_STRANDS as readonly string[]).includes(values.trackStrand || "") ? values.trackStrand : ""} onChange={set("trackStrand")} disabled={!isShs}>
+            <SelectField id="edit_trackStrand" className="inp" value={isShs && (TRACK_STRANDS as readonly string[]).includes(values.trackStrand || "") ? values.trackStrand : ""} onChange={set("trackStrand")} disabled={!isShs}>
               <option value="">{isShs ? "Select STEM or HUMSS…" : "Only applies to Grades 11–12"}</option>
               {TRACK_STRANDS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
-            </select>
+            </SelectField>
             {isShs && values.trackStrand && !(TRACK_STRANDS as readonly string[]).includes(values.trackStrand) && (
               <p className="text-muted mt-1 text-xs">Stored value “{values.trackStrand}” is no longer offered. Select STEM or HUMSS.</p>
             )}
             {errors.trackStrand && <p className="field-error" role="alert">{errors.trackStrand}</p>}
-          </div>
-          <div>
-            <label className="lbl" htmlFor="edit_bloodType">Blood Type</label>
-            <select id="edit_bloodType" className="inp" value={values.bloodType || ""} onChange={set("bloodType")}>
-              <option value="">Unknown</option>
-              {BLOOD_TYPES.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-            {errors.bloodType && <p className="field-error" role="alert">{errors.bloodType}</p>}
           </div>
           {textField("address", "Address", true)}
           {textField("email", "Email (optional)")}

@@ -51,7 +51,6 @@ export const adminUsers = mysqlTable(
 export type AdminTemplateConfig = {
   schoolYear: string;
   orientation: "portrait";
-  showBloodType: boolean;
   showTrackStrand: boolean;
   showEmergencyContact: boolean;
   signatoryName: string;
@@ -115,7 +114,6 @@ export const studentApplications = mysqlTable(
     contactNumber: varchar("contact_number", { length: 32 }),
     emergencyContactName: varchar("emergency_contact_name", { length: 150 }).notNull(),
     emergencyContactPhone: varchar("emergency_contact_phone", { length: 32 }).notNull(),
-    bloodType: varchar("blood_type", { length: 8 }),
     photoStorageKey: varchar("photo_storage_key", { length: 128 }),
     studentSignatureDataUrl: mediumtext("student_signature_data_url"),
     status: mysqlEnum("status", applicationStatusValues).notNull().default("pending"),
@@ -169,7 +167,6 @@ export const idTemplateConfig = mysqlTable("id_template_config", {
   version: int("version").notNull().default(1),
   schoolYear: varchar("school_year", { length: 20 }).notNull(),
   orientation: mysqlEnum("orientation", ["landscape", "portrait"]).notNull().default("portrait"),
-  showBloodType: boolean("show_blood_type").notNull().default(true),
   showTrackStrand: boolean("show_track_strand").notNull().default(true),
   showEmergencyContact: boolean("show_emergency_contact").notNull().default(true),
   signatoryName: varchar("signatory_name", { length: 150 }).notNull().default(""),
@@ -331,6 +328,13 @@ export const adminProfiles = mysqlTable(
     }).onDelete("cascade"),
   ],
 );
+
+export const schoolSettings = mysqlTable("school_settings", {
+  id: int("id").primaryKey(),
+  address: varchar("address", { length: 300 }).notNull(),
+  updatedByAdminId: int("updated_by_admin_id"),
+  updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).default(sql`(now())`).notNull(),
+});
 
 export const formSessions = mysqlTable(
   "form_sessions",

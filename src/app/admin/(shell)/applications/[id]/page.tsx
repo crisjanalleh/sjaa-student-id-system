@@ -197,7 +197,6 @@ export default async function ApplicationDetailPage({
               {info("Full Name", fullName(app))}
               {info("Grade Level", app.gradeLevel)}
               {info("Track / Strand", app.trackStrand)}
-              {info("Blood Type", app.bloodType)}
               {info("Address", app.address)}
               {info("Email", app.email ? <span className="break-all">{app.email}</span> : null)}
               {info("Contact No.", app.contactNumber)}
@@ -226,7 +225,6 @@ export default async function ApplicationDetailPage({
                 contactNumber: app.contactNumber || "",
                 emergencyContactName: app.emergencyContactName,
                 emergencyContactPhone: app.emergencyContactPhone,
-                bloodType: app.bloodType || "",
               }}
             />
           )}

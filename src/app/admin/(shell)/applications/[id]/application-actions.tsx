@@ -11,6 +11,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import HelpTip from "@/components/help-tip";
+import QuickTip from "@/components/quick-tip";
 import { useRef, useState, type ChangeEvent } from "react";
 
 type Props = {
@@ -250,9 +252,14 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto, ap
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm physical ID handover">
           <div className="modal-panel p-5">
             <h3 className="mb-2 text-sm font-bold">Confirm Physical ID Handover</h3>
-            <p className="text-muted text-xs leading-relaxed">
-              Confirm only after the physical ID has been handed to the student. The control number is a lookup reference, not proof of identity; follow the school&rsquo;s identity verification procedure.
-            </p>
+            <QuickTip
+              className="mt-3"
+              items={[
+                "Confirm only after the card has been handed to the student.",
+                "This is recorded in the audit trail and cannot be undone.",
+                "The control number is only a lookup reference. Verify identity as the school requires.",
+              ]}
+            />
             <dl className="my-4 grid grid-cols-2 gap-3 rounded-md border p-3 text-xs" style={{ borderColor: "var(--line)" }}>
               <div><dt className="lbl !mb-0.5">Control Number</dt><dd className="font-mono font-bold">{applicationCode}</dd></div>
               <div><dt className="lbl !mb-0.5">Student ID / LRN</dt><dd className="font-mono">{studentIdNumber}</dd></div>
@@ -289,8 +296,11 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto, ap
               A rejection reason is required. The student will be emailed this reason and
               instructed to bring a replacement photo to the Administration Office.
             </p>
-            <label className="lbl" htmlFor="reject_reason">
+            <label className="lbl flex items-center gap-1" htmlFor="reject_reason">
               Rejection Reason
+              <HelpTip label="writing a rejection reason" align="start">
+                Be specific so the student knows exactly what to fix, e.g. &ldquo;Photo is blurry; retake against a plain background.&rdquo;
+              </HelpTip>
             </label>
             <textarea
               id="reject_reason"

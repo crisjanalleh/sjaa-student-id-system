@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/format";
 import { normalizeCardDesign } from "@/lib/card-design";
 import { getTemplateConfig } from "@/lib/template";
 import { IdCard } from "lucide-react";
+import QuickTip from "@/components/quick-tip";
 import TemplateEditor from "./template-editor";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function TemplatePage() {
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="page-head-stack">
         <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
           <IdCard className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
           ID Template Management
@@ -37,6 +38,13 @@ export default async function TemplatePage() {
           Configure which fields appear on the printed CR80 card. Every saved change
           increments the template version recorded on future print batches.
         </p>
+        <QuickTip
+          className="mt-3"
+          items={[
+            "Visibility toggles control which fields appear on generated ID cards.",
+            "Check both the Junior High and Senior High previews before saving.",
+          ]}
+        />
       </div>
       <div className="text-muted mb-4 text-xs">
         Active version{" "}
@@ -50,7 +58,6 @@ export default async function TemplatePage() {
         initial={{
           schoolYear: row.schoolYear,
           orientation: "portrait",
-          showBloodType: row.showBloodType,
           showTrackStrand: row.showTrackStrand,
           showEmergencyContact: row.showEmergencyContact,
           signatoryName: row.signatoryName,

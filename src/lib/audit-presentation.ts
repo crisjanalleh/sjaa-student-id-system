@@ -7,6 +7,7 @@ type AuditPresentation = {
 
 const PRESENTATION: Record<string, AuditPresentation> = {
   "admin.setup_completed": { label: "Administrator setup completed", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
+  "admin.school_location_updated": { label: "School location updated", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
   "admin.profile_updated": { label: "Administrator profile updated", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
   "auth.login_success": { label: "Signed in", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
   "auth.login_failed": { label: "Sign-in failed", color: "#991b1b", background: "#fee2e2", border: "#fecaca" },
@@ -69,6 +70,8 @@ export function auditDetails(action: string, metadata: AuditMetadata): string {
       return "Initial administrator account created";
     case "admin.profile_updated":
       return metadata?.passwordChanged === true ? "Profile details and sign-in password updated" : "Administrator profile details updated";
+    case "admin.school_location_updated":
+      return textValue(metadata, "address") ? `School location set to ${textValue(metadata, "address")}` : "School location updated";
     case "auth.login_failed": {
       const username = textValue(metadata, "username");
       return username ? `Sign-in attempted for ${username}` : "Unsuccessful sign-in attempt";

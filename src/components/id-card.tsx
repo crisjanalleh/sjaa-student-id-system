@@ -11,7 +11,6 @@ export type IdCardData = {
   fullNameLine: string;
   gradeLevel: string;
   trackStrand: string | null;
-  bloodType: string | null;
   emergencyContactName: string;
   emergencyContactPhone: string;
   address: string;
@@ -38,23 +37,78 @@ function signatorySignatureStyle(template: AdminTemplateConfig): CSSProperties {
   };
 }
 
-function SchoolLogo() {
-  return <SjaaLogo className="sjaa-card-logo h-[8.5mm] w-[8.5mm] shrink-0 object-contain" />;
+function SchoolLogo({ className = "" }: { className?: string }) {
+  return <SjaaLogo className={`sjaa-card-logo object-contain ${className}`} />;
 }
 
-function CardWave() {
+const BLUE = "#1d4f9c";
+const YELLOW = "#f3d533";
+const SERIF = "Cambria, Georgia, 'Times New Roman', serif";
+
+/** Senior High (Grade 11-12) IDs carry two validation years; Junior High IDs carry four. */
+export function isSeniorHigh(gradeLevel: string): boolean {
+  return /^grade\s*(11|12)$/i.test(gradeLevel.trim());
+}
+
+function BottomWave() {
   return (
-    <svg className="sjaa-card-wave" viewBox="0 0 540 100" preserveAspectRatio="none" aria-hidden="true">
-      <path fill="#f0c52f" d="M0 39C115 92 206 58 297 30c95-29 148-22 243 10v60H0Z" />
-      <path fill="#07539a" d="M0 59c104 34 190 30 294 0 105-31 168-31 246-7v48H0Z" />
+    <svg className="sjaa-card-art" viewBox="0 0 53.98 85.6" preserveAspectRatio="none" aria-hidden="true">
+      <path
+        fill={YELLOW}
+        d="M0 79.4C12 77.4 24 82.4 34 83.2C44 84 50 80.4 53.98 77.8V80.6C50 83 44 86.6 34 86.2C24 85.8 12 81.4 0 82Z"
+      />
+      <path fill={BLUE} d="M0 82C12 81.4 24 85.8 34 86.2C44 86.6 50 83 53.98 80.6V85.6H0Z" />
+      <path fill={BLUE} d="M0 79.8C9 78.4 18 80.6 26 81.2C18 83.4 8 84.2 0 83.6Z" />
     </svg>
   );
 }
 
-function validationYears(schoolYear: string): string[] {
+function FrontArt() {
+  return (
+    <svg className="sjaa-card-art" viewBox="0 0 53.98 85.6" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="53.98" height="85.6" fill="#fbfaf4" />
+      <path d="M0 0H53.98V5.2C46 3.4 40 9.2 30 9.6C21 9.9 15 5.6 0 8.4Z" fill={BLUE} />
+      <path
+        d="M0 8.4C15 5.6 21 9.9 30 9.6C40 9.2 46 3.4 53.98 5.2V6.6C46 5.2 40 10.8 30 11C21 11.2 15 7.4 0 10Z"
+        fill={YELLOW}
+      />
+      <path d="M26 11.4C36 10.6 46 9.8 53.98 6.8V10.8C46 12 36 11.8 26 11.4Z" fill={BLUE} />
+      <rect y="13.6" width="53.98" height="8.3" fill={BLUE} />
+    </svg>
+  );
+}
+
+function BackArt() {
+  return (
+    <svg className="sjaa-card-art" viewBox="0 0 53.98 85.6" preserveAspectRatio="none" aria-hidden="true">
+      <rect width="53.98" height="85.6" fill="#fbfaf4" />
+      <path d="M0 0H53.98V4.4C47 3.4 42 6.8 35 8.4C27 10.2 21 11.8 14 10.2C8 8.8 4 7.6 0 8.2Z" fill={BLUE} />
+      <path
+        d="M0 8.2C4 7.6 8 8.8 14 10.2C21 11.8 27 10.2 35 8.4C42 6.8 47 3.4 53.98 4.4V5.8C47 4.8 42 8.2 35 9.8C27 11.6 21 13.2 14 11.6C8 10.2 4 9 0 9.6Z"
+        fill={YELLOW}
+      />
+      <path d="M29.7 9.4C38 7.2 46 6.4 53.98 6.6V11.2C46 11.4 38 11 29.7 9.4Z" fill={BLUE} />
+      <circle cx="44.2" cy="8.4" r="5.4" fill="#d3e5f6" stroke="#5d90c6" strokeWidth="0.35" />
+      <text
+        x="44.2"
+        y="9.9"
+        textAnchor="middle"
+        fontSize="4.2"
+        fontWeight="900"
+        fontStyle="italic"
+        fill="#2b5c9c"
+        fontFamily="Arial, sans-serif"
+      >
+        ESC
+      </text>
+    </svg>
+  );
+}
+
+function validationYears(schoolYear: string, count: number): string[] {
   const startYear = Number(schoolYear.match(/\d{4}/)?.[0]);
   const first = Number.isInteger(startYear) ? startYear : new Date().getFullYear();
-  return Array.from({ length: 4 }, (_, index) => {
+  return Array.from({ length: count }, (_, index) => {
     const start = first + index;
     return `${start} - ${start + 1}`;
   });
@@ -80,47 +134,83 @@ function CardFront({
         data-orientation={template.orientation}
         aria-label="ID card front"
       >
-        <div className="sjaa-front-header">
-          <div className="sjaa-front-brand">
-            <SchoolLogo />
-            <div className="sjaa-front-school-name">SAN JOSE ADVENTIST<br />ACADEMY INC.</div>
-          </div>
-          <div className="sjaa-front-motto">&ldquo;The School that Trains for Service.&rdquo;</div>
-          <div className="sjaa-front-location">San Jose, Occidental Mindoro</div>
+        <FrontArt />
+        <SchoolLogo className="sjaa-front-logo" />
+        <svg className="sjaa-card-art" viewBox="0 0 53.98 85.6" aria-hidden="true">
+          <g
+            fontFamily="'Arial Rounded MT Bold','Trebuchet MS',Verdana,sans-serif"
+            fontWeight="900"
+            fill="#f7e03c"
+            stroke="#4a4a12"
+            strokeWidth="0.3"
+            strokeLinejoin="round"
+            paintOrder="stroke"
+            fontSize="3.7"
+          >
+            <text x="13.1" y="5.7" textLength="38.3" lengthAdjust="spacingAndGlyphs">SAN JOSE ADVENTIST</text>
+            <text x="19.1" y="9.4" textLength="26.8" lengthAdjust="spacingAndGlyphs">ACADEMY INC.</text>
+          </g>
+          <text
+            x="13.3"
+            y="12.7"
+            textLength="37.5"
+            lengthAdjust="spacingAndGlyphs"
+            fontSize="2.9"
+            fontStyle="italic"
+            fontWeight="700"
+            fill="#c8372d"
+            fontFamily="'Segoe Script','Brush Script MT',Georgia,serif"
+          >
+            &ldquo;The school that trains for service.&rdquo;
+          </text>
+          <g fill="#ffffff" fontFamily={SERIF} fontWeight="700" fontSize="2.45">
+            <text x="2.6" y="16.3" textLength="47" lengthAdjust="spacingAndGlyphs">
+              V. Mariano St., San Roque 2, San Jose, Occ. Mindoro
+            </text>
+            <text x="15.5" y="18.5" textLength="21.6" lengthAdjust="spacingAndGlyphs">Tel. No.: (043) 491 - 2579</text>
+            <text x="8.8" y="20.8" textLength="34.6" lengthAdjust="spacingAndGlyphs">
+              Email Address: sjaa_sjaes@yahoo.com
+            </text>
+          </g>
+          <text
+            x="6.4"
+            y="25.8"
+            textLength="42.2"
+            lengthAdjust="spacingAndGlyphs"
+            fontSize="4"
+            fontWeight="900"
+            fill="#2a2a2a"
+            fontFamily={SERIF}
+          >
+            {isSeniorHigh(data.gradeLevel) ? "SENIOR HIGH SCHOOL" : "JUNIOR HIGH SCHOOL"}
+          </text>
+        </svg>
+        <div className="sjaa-front-photo" style={{ transform: photoTransform }}>
+          {photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoUrl} alt="Student" />
+          ) : (
+            <svg width="14mm" height="14mm" viewBox="0 0 24 24" fill="#94A3B8" aria-hidden>
+              <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.4c-3.3 0-9.8 1.7-9.8 4.9v2.5h19.6v-2.5c0-3.2-6.5-4.9-9.8-4.9z" />
+            </svg>
+          )}
         </div>
-        <div className="sjaa-front-level">
-          {data.gradeLevel === "Grade 11" || data.gradeLevel === "Grade 12"
-            ? "SENIOR HIGH SCHOOL"
-            : "JUNIOR HIGH SCHOOL"}
+        <div className="sjaa-front-name" style={{ fontSize: `${design.nameFontSize}px`, transform: nameTransform }}>
+          {data.fullNameLine}
         </div>
-        <div className="sjaa-front-body">
-          <div className="sjaa-front-photo" style={{ transform: photoTransform }}>
-            {photoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoUrl} alt="Student" />
-            ) : (
-              <svg width="14mm" height="14mm" viewBox="0 0 24 24" fill="#94A3B8" aria-hidden>
-                <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.4c-3.3 0-9.8 1.7-9.8 4.9v2.5h19.6v-2.5c0-3.2-6.5-4.9-9.8-4.9z" />
-              </svg>
-            )}
-          </div>
-          <div className="sjaa-front-name" style={{ fontSize: `${design.nameFontSize}px`, transform: nameTransform }}>
-            {data.fullNameLine}
-          </div>
-          <div className="sjaa-front-lrn">
-            <span>LRN:</span> {data.studentIdNumber}
-          </div>
-          <div className="sjaa-student-signature">
-            {data.studentSignatureDataUrl && (
-              // The normalized signature is held in the private application record.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={data.studentSignatureDataUrl} alt="" />
-            )}
-            <span className="sjaa-student-signature-line" />
-            <span className="sjaa-student-signature-label">Student Signature</span>
-          </div>
+        <div className="sjaa-front-lrn">
+          <span>LRN:</span>
+          <b>{data.studentIdNumber}</b>
         </div>
-        <CardWave />
+        <div className="sjaa-student-signature">
+          {data.studentSignatureDataUrl && (
+            // The normalized signature is held in the private application record.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={data.studentSignatureDataUrl} alt="" />
+          )}
+          <span className="sjaa-student-signature-label">Student Signature</span>
+        </div>
+        <BottomWave />
       </div>
     );
   }
@@ -287,6 +377,7 @@ function CardBack({
   data: IdCardData;
   template: AdminTemplateConfig;
 }) {
+  const years = validationYears(template.schoolYear, isSeniorHigh(data.gradeLevel) ? 2 : 4);
   if (template.orientation === "portrait") {
     return (
       <div
@@ -295,50 +386,52 @@ function CardBack({
         data-orientation={template.orientation}
         aria-label="ID card back"
       >
-        <div className="sjaa-back-header">
-          <div className="sjaa-back-header-text">SAN JOSE ADVENTIST ACADEMY INC.</div>
-          <SchoolLogo />
-        </div>
-        <div className="sjaa-back-body">
-          <h2 className="sjaa-back-instructions">
-            In case of emergency or loss of this School ID, please contact:
-          </h2>
-          {template.showEmergencyContact && (
-            <div className="sjaa-back-contact-list">
-              <div className="sjaa-back-contact">
-                <UserRound aria-hidden />
-                <strong>{data.emergencyContactName}</strong>
-              </div>
-              <div className="sjaa-back-contact">
-                <House aria-hidden />
-                <span>{data.address}</span>
-              </div>
-              <div className="sjaa-back-contact">
-                <Phone aria-hidden />
-                <span>{data.emergencyContactPhone}</span>
-              </div>
+        <BackArt />
+        <svg className="sjaa-card-art" viewBox="0 0 53.98 85.6" aria-hidden="true">
+          <g fill="#3a3a3a" fontFamily={SERIF} fontSize="2.9">
+            <text x="4" y="16.7" textLength="47.8" lengthAdjust="spacingAndGlyphs">
+              In case of emergency or loss of this
+            </text>
+            <text x="7.7" y="20.5" textLength="39.9" lengthAdjust="spacingAndGlyphs">
+              School ID, PLEASE CONTACT:
+            </text>
+          </g>
+        </svg>
+        {template.showEmergencyContact && (
+          <div className="sjaa-back-contact-list">
+            <div className="sjaa-back-contact sjaa-back-contact-name">
+              <UserRound aria-hidden />
+              <strong>{data.emergencyContactName}</strong>
             </div>
-          )}
-          <h3 className="sjaa-validation-title">VALIDATION</h3>
-          <table className="sjaa-validation-table">
-            <thead>
-              <tr>
-                {validationYears(template.schoolYear).map((year) => (
-                  <th key={year}>{year}</th>
-                ))}
+            <div className="sjaa-back-contact sjaa-back-contact-address">
+              <House aria-hidden />
+              <span>{data.address}</span>
+            </div>
+            <div className="sjaa-back-contact sjaa-back-contact-phone">
+              <Phone aria-hidden />
+              <span>{data.emergencyContactPhone}</span>
+            </div>
+          </div>
+        )}
+        <h3 className="sjaa-validation-title">VALIDATION:</h3>
+        <table className={`sjaa-validation-table ${years.length > 2 ? "is-four-year" : ""}`}>
+          <thead>
+            <tr>
+              <th />
+              <th>First Sem</th>
+              <th>Second Sem</th>
+            </tr>
+          </thead>
+          <tbody>
+            {years.map((year, index) => (
+              <tr key={year}>
+                <th scope="row">{year}</th>
+                <td>{index === 0 && <SchoolLogo />}</td>
+                <td />
               </tr>
-            </thead>
-            <tbody>
-              <tr>
-                {validationYears(template.schoolYear).map((year, index) => (
-                  <td key={year}>
-                    {index === 0 && <SchoolLogo />}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
         <div className="sjaa-principal-signature">
           {template.designSettings.signatorySignature && (
             // Signature data is normalized to a bounded, re-encoded PNG by the template API.
@@ -352,7 +445,7 @@ function CardBack({
           <strong>{template.signatoryName || " "}</strong>
           <span>{template.signatoryTitle || "SCHOOL PRINCIPAL"}</span>
         </div>
-        <CardWave />
+        <BottomWave />
       </div>
     );
   }
@@ -394,27 +487,6 @@ function CardBack({
         )}
 
         <div style={{ display: "flex", gap: "4mm" }}>
-          {template.showBloodType && (
-            <div>
-              <div style={{ fontSize: "5.4px", fontWeight: 700, color: "#64748B", letterSpacing: "0.5px" }}>
-                BLOOD TYPE
-              </div>
-              <div
-                style={{
-                  display: "inline-block",
-                  border: "0.3mm solid #B91C1C",
-                  color: "#B91C1C",
-                  borderRadius: "0.8mm",
-                  fontWeight: 800,
-                  fontSize: "7px",
-                  padding: "0.5mm 1.6mm",
-                  marginTop: "0.4mm",
-                }}
-              >
-                {data.bloodType || "—"}
-              </div>
-            </div>
-          )}
           {template.showTrackStrand && data.trackStrand && (
             <div>
               <div style={{ fontSize: "5.4px", fontWeight: 700, color: "#64748B", letterSpacing: "0.5px" }}>
@@ -528,7 +600,6 @@ export const SAMPLE_CARD_DATA: IdCardData = {
   fullNameLine: "DELA CRUZ, JUAN A. JR.",
   gradeLevel: "Grade 11",
   trackStrand: "STEM — Science, Technology, Engineering and Mathematics",
-  bloodType: "O+",
   emergencyContactName: "Maria S. Dela Cruz",
   emergencyContactPhone: "0917 123 4567",
   address: "Mabini, San Jose, Occidental Mindoro",

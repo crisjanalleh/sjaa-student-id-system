@@ -58,5 +58,6 @@ export const SCHOOL = {
   shortName: "SJAA",
   motto: "The School that Trains for Service.",
   location: "San Jose, Occ. Mindoro",
+  address: "V. Mariano St, San Roque 2, San Jose, Occidental Mindoro",
   established: "1996",
 } as const;

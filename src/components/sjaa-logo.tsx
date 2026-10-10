@@ -1,5 +1,5 @@
 import Image from "next/image";
-import logo from "../../assets/main-logo.png";
+import logo from "../../assets/main-logo-new.png";
 
 export default function SjaaLogo({
   className,

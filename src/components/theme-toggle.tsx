@@ -1,35 +1,45 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
-import { useState } from "react";
+import { Moon, MoonStar, Sun } from "lucide-react";
+import { useSyncExternalStore } from "react";
+import {
+  DEFAULT_PREFERENCES,
+  getPreferences,
+  subscribePreferences,
+  updatePreferences,
+  type ThemePreference,
+} from "@/lib/preferences";
+
+const OPTIONS: { value: Exclude<ThemePreference, "system">; label: string; hint: string; Icon: typeof Sun }[] = [
+  { value: "light", label: "Light", hint: "Bright background", Icon: Sun },
+  { value: "twilight", label: "Twilight", hint: "Softer dark, easier on the eyes", Icon: MoonStar },
+  { value: "dark", label: "Dark", hint: "Full dark background", Icon: Moon },
+];
 
 export default function ThemeToggle() {
-  const [storageUnavailable, setStorageUnavailable] = useState(false);
-
-  const toggle = () => {
-    const current = document.documentElement.dataset.theme ||
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = current === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = next;
-    try {
-      localStorage.setItem("sjaa-theme", next); // non-PII preference only
-      setStorageUnavailable(false);
-    } catch {
-      setStorageUnavailable(true);
-    }
-  };
+  const theme = useSyncExternalStore(
+    subscribePreferences,
+    () => getPreferences().theme,
+    () => DEFAULT_PREFERENCES.theme,
+  );
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="btn btn-ghost btn-sm"
-      aria-label="Toggle color theme"
-      title="Toggle color theme"
-    >
-      <Sun className="theme-toggle-sun h-4 w-4" aria-hidden />
-      <Moon className="theme-toggle-moon h-4 w-4" aria-hidden />
-      {storageUnavailable && <span className="sr-only">Theme preference will not be saved</span>}
-    </button>
+    <div className="pref-segment" role="radiogroup" aria-label="Color theme">
+      {OPTIONS.map(({ value, label, hint, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={theme === value}
+          title={hint}
+          onClick={() => updatePreferences({ theme: value })}
+        >
+          <span className="flex items-center justify-center gap-1">
+            <Icon className="h-3.5 w-3.5" aria-hidden />
+            {label}
+          </span>
+        </button>
+      ))}
+    </div>
   );
 }

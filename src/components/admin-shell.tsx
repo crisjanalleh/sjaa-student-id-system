@@ -11,8 +11,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SCHOOL } from "@/lib/config";
-import ThemeToggle from "@/components/theme-toggle";
+import DisplayPreferences, { WorkspaceSection } from "@/components/display-preferences";
+import LocationEditor from "@/components/location-editor";
 import SjaaLogo from "@/components/sjaa-logo";
+import ManilaClock from "@/components/manila-clock";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", exact: true },
@@ -29,12 +31,14 @@ export default function AdminShell({
   username,
   avatarDataUrl,
   csrfToken,
+  address,
   children,
 }: {
   fullName: string;
   username: string;
   avatarDataUrl: string | null;
   csrfToken: string;
+  address: string;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -113,52 +117,56 @@ export default function AdminShell({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold leading-tight">{SCHOOL.name}</p>
               <p className="text-muted truncate text-[11px]">Student ID Issuance · Administration</p>
+              <p className="text-muted truncate text-[11px]">{address}</p>
             </div>
           </div>
+          <ManilaClock />
           <div className="admin-workspace-menu no-print" ref={workspaceMenu}>
             <div className="admin-workspace-panel" id="admin-workspace-panel" hidden={!workspaceMenuOpen}>
-              <p className="text-muted px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.08em]">
-                Administration workspace
-              </p>
-              <div className="admin-workspace-context">
-                <div className="admin-workspace-context-item">
-                  <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden />
-                  <span>
-                    <span className="admin-workspace-context-label">Access</span>
-                    <span className="admin-workspace-context-value">Authorized staff</span>
-                  </span>
-                </div>
-                <div className="admin-workspace-context-item">
-                  <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  <span>
-                    <span className="admin-workspace-context-label">School location</span>
-                    <span className="admin-workspace-context-value">{SCHOOL.location}</span>
-                  </span>
-                </div>
-              </div>
               <Link
                 href="/admin/profile"
                 className="admin-workspace-profile"
                 onClick={() => setWorkspaceMenuOpen(false)}
               >
-                <span className="admin-user-icon flex h-9 w-9 shrink-0 overflow-hidden">
+                <span className="admin-user-icon admin-profile-avatar flex shrink-0 overflow-hidden">
                   {avatarDataUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                  ) : fullName.trim().charAt(0).toUpperCase() || <UserRound className="h-4 w-4" aria-hidden />}
+                  ) : fullName.trim().charAt(0).toUpperCase() || <UserRound className="h-6 w-6" aria-hidden />}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-xs font-semibold">{fullName}</span>
-                  <span className="text-muted block truncate text-[10px]">Profile · @{username}</span>
+                  <span className="block truncate text-sm font-bold">{fullName}</span>
+                  <span className="text-muted block truncate text-xs">@{username}</span>
+                  <span className="admin-profile-link">View and edit profile</span>
                 </span>
               </Link>
-              <div className="admin-workspace-action">
-                <span className="text-xs font-medium">Appearance</span>
-                <ThemeToggle />
+              <div className="ws-groups">
+                <WorkspaceSection title="Workspace info" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} summary="Access · location">
+                  <div className="admin-workspace-context">
+                    <div className="admin-workspace-context-item">
+                      <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden />
+                      <span>
+                        <span className="admin-workspace-context-label">Access</span>
+                        <span className="admin-workspace-context-value">Authorized staff</span>
+                      </span>
+                    </div>
+                    <div className="admin-workspace-context-item">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span>
+                        <span className="admin-workspace-context-label">School location</span>
+                        <span className="admin-workspace-context-value">{address}</span>
+                      </span>
+                    </div>
+                  </div>
+                </WorkspaceSection>
+                <WorkspaceSection title="School location" icon={<MapPin className="h-4 w-4" aria-hidden />} summary="Edit address">
+                  <LocationEditor address={address} csrfToken={csrfToken} />
+                </WorkspaceSection>
+                <DisplayPreferences />
               </div>
               <button
                 type="button"
-                className="btn btn-outline btn-sm mt-2 w-full"
+                className="btn-signout"
                 onClick={logout}
                 disabled={loggingOut}
               >
@@ -184,7 +192,7 @@ export default function AdminShell({
           <div className="mx-auto max-w-7xl px-2 sm:px-6">{nav}</div>
         </div>
       </div>
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+      <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</main>
     </div>
   );
 }

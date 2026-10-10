@@ -1,5 +1,5 @@
 import "server-only";
-import { BLOOD_TYPES, GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
 
 export type FieldErrors = Record<string, string>;
 
@@ -35,7 +35,6 @@ export function validateApplicationFields(input: Record<string, unknown>): {
     contactNumber: string | null;
     emergencyContactName: string;
     emergencyContactPhone: string;
-    bloodType: string | null;
     consent: boolean;
   };
   errors: FieldErrors;
@@ -107,11 +106,6 @@ export function validateApplicationFields(input: Record<string, unknown>): {
   else if (!PHONE_RE.test(emergencyContactPhone))
     errors.emergencyContactPhone = "Enter a valid emergency phone number.";
 
-  const bloodRaw = cleanText(input.bloodType).slice(0, 8);
-  const bloodType = bloodRaw || null;
-  if (bloodType && !(BLOOD_TYPES as readonly string[]).includes(bloodType))
-    errors.bloodType = "Select a valid blood type.";
-
   const consent = input.consent === true || input.consent === "true" || input.consent === "on";
   if (!consent) errors.consent = "You must agree to the privacy notice to submit.";
 
@@ -129,7 +123,6 @@ export function validateApplicationFields(input: Record<string, unknown>): {
       contactNumber,
       emergencyContactName,
       emergencyContactPhone,
-      bloodType,
       consent,
     },
     errors,
