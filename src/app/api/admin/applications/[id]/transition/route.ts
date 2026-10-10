@@ -5,13 +5,15 @@ import { studentApplications } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { deliverNotification, queueNotification } from "@/lib/mailer";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { cleanText } from "@/lib/validate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type Action = "approve" | "reject" | "claim";
 
 function json(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status });
@@ -38,13 +40,16 @@ export async function POST(
   const id = Number.parseInt(rawId, 10);
   if (!Number.isInteger(id) || id <= 0) return json(400, { ok: false, error: "Invalid application id." });
 
-  let body: { action?: unknown; reason?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 16 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Application action request is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
-  const action = body.action as Action;
+  const action = typeof body.action === "string" ? body.action : "";
 
   const ip = clientIp(req);
 
@@ -149,6 +154,12 @@ export async function POST(
   }
 
   if (action === "claim") {
+    if (body.confirmedHandover !== true) {
+      return json(422, {
+        ok: false,
+        error: "Confirm that the student was verified and the physical ID was handed over.",
+      });
+    }
     const result = await db.transaction(async (tx) => {
       const rows = await tx
         .select()

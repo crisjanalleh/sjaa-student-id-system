@@ -1,10 +1,14 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import { studentApplications } from "@/db/schema";
+import { printBatchItems, studentApplications } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { hasErrors, validateApplicationFields } from "@/lib/validate";
 import { isDuplicateEntry } from "@/lib/db-errors";
 
@@ -30,8 +34,11 @@ export async function PATCH(
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 32 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Application update is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 
@@ -129,6 +136,12 @@ export async function DELETE(
     const app = rows[0];
     if (!app) return { status: 404 as const };
     if (app.status === "claimed") return { status: 409 as const };
+    const batchItems = await tx
+      .select({ id: printBatchItems.id })
+      .from(printBatchItems)
+      .where(eq(printBatchItems.applicationId, id))
+      .limit(1);
+    if (batchItems.length > 0) return { status: 409 as const, reason: "batched" as const };
 
     await tx
       .update(studentApplications)
@@ -147,6 +160,11 @@ export async function DELETE(
   });
 
   if (result.status === 404) return json(404, { ok: false, error: "Application not found." });
-  if (result.status === 409) return json(409, { ok: false, error: "Claimed records cannot be deleted." });
+  if (result.status === 409) {
+    return json(409, {
+      ok: false,
+      error: "Records in a print batch or already claimed cannot be deleted. Preserve the issuance history and contact an administrator if a correction is needed.",
+    });
+  }
   return json(200, { ok: true });
 }

@@ -6,7 +6,11 @@ import { adminProfiles, adminSessions, adminUsers } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/crypto";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { cleanText } from "@/lib/validate";
 import { isDuplicateEntry } from "@/lib/db-errors";
 
@@ -21,13 +25,13 @@ export async function POST(req: Request) {
   const { ctx, error } = await requireAdminApi();
   if (error) return error;
   if (!csrfOk(req, ctx.csrfToken)) return response(403, { ok: false, error: "Security validation failed." });
-  const contentLength = Number(req.headers.get("content-length") || 0);
-  if (contentLength > 1_500_000) return response(413, { ok: false, error: "Profile image must be 1 MB or smaller." });
-
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 2 * 1024 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return response(413, { ok: false, error: "Profile update is too large. Profile images must be 1 MB or smaller." });
+    }
     return response(400, { ok: false, error: "Could not read the profile update." });
   }
 

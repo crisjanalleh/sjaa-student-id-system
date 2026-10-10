@@ -32,7 +32,7 @@ export default function PrintButton() {
         {preparing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Printer className="h-4 w-4" aria-hidden />}
         {preparing ? "Preparing cards…" : "Print cards"}
       </button>
-      {error && <span role="alert" className="flex max-w-80 items-center gap-1 text-right text-xs text-red-700">
+      {error && <span role="alert" className="flex max-w-80 items-center gap-1 text-right text-xs" style={{ color: "var(--danger)" }}>
         <TriangleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />{error}
       </span>}
     </div>

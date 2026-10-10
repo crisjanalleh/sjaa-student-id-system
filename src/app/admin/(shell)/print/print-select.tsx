@@ -74,11 +74,10 @@ export default function PrintSelect({
         body: JSON.stringify({ ids: [...selected] }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; batchId?: number; error?: string; notificationAttention?: boolean }
+        | { ok?: boolean; batchId?: number; error?: string }
         | null;
       if ((res.status === 201 || res.ok) && data?.ok && data.batchId) {
-        const notice = data.notificationAttention ? "?notice=notification-attention" : "";
-        router.push(`/admin/print/${data.batchId}${notice}`);
+        router.push(`/admin/print/${data.batchId}`);
         router.refresh();
         return;
       }

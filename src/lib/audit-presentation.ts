@@ -25,6 +25,7 @@ const PRESENTATION: Record<string, AuditPresentation> = {
   "application.claimed": { label: "ID card claimed", color: "#0f766e", background: "#ccfbf1", border: "#99f6e4" },
   "template.updated": { label: "ID card design updated", color: "#6b21a8", background: "#f3e8ff", border: "#e9d5ff" },
   "batch.created": { label: "ID print batch created", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
+  "batch.printed": { label: "ID cards printed and ready", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
   "notification.queued": { label: "Email notification queued", color: "#92400e", background: "#fef3c7", border: "#fde68a" },
   "notification.retried": { label: "Email notification retried", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
   "notification.acknowledged": { label: "Email receipt acknowledged", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
@@ -108,6 +109,13 @@ export function auditDetails(action: string, metadata: AuditMetadata): string {
       return [count && `${count} ${count === "1" ? "card" : "cards"}`, batchCode && `Batch ${batchCode}`]
         .filter(Boolean)
         .join(" · ") || "Cards added to a print batch";
+    }
+    case "batch.printed": {
+      const count = textValue(metadata, "cardCount");
+      const batchCode = textValue(metadata, "batchCode");
+      return [count && `${count} ${count === "1" ? "card" : "cards"}`, batchCode && `Batch ${batchCode}`]
+        .filter(Boolean)
+        .join(" · ") || "Batch confirmed as printed";
     }
     case "notification.retried": {
       const result = textValue(metadata, "result");

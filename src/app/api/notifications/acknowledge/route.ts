@@ -6,7 +6,10 @@ import { audit } from "@/lib/audit";
 import { config } from "@/lib/config";
 import { hashIp, sha256Hex } from "@/lib/crypto";
 import { rateLimitHit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readFormDataBounded,
+} from "@/lib/request";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
 
   let formData: FormData;
   try {
-    formData = await request.formData();
+    formData = await readFormDataBounded(request, 4 * 1024);
   } catch {
     return redirect("unavailable");
   }

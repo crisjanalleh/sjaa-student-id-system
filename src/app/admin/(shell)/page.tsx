@@ -78,7 +78,7 @@ export default async function DashboardPage({
     { key: "pending", label: "Pending review", color: "#d97706", description: "Needs review", action: true },
     { key: "approved", label: "Approved", color: "#16a34a", description: "Ready to print", action: true },
     { key: "printed", label: "Printed", color: "#2563eb", description: "Awaiting collection", action: false },
-    { key: "claimed", label: "Claimed", color: "#64748b", description: "Complete", action: false },
+    { key: "claimed", label: "ID Claimed", color: "#64748b", description: "Complete", action: false },
     { key: "rejected", label: "Not approved", color: "#dc2626", description: "Closed", action: false },
   ] as const;
   let chartOffset = 0;

@@ -23,8 +23,16 @@ export default function EditDetailsForm({
   const [serverError, setServerError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const set = (k: string) => (e: { target: { value: string } }) =>
-    setValues((v) => ({ ...v, [k]: e.target.value }));
+  const isShs = values.gradeLevel === "Grade 11" || values.gradeLevel === "Grade 12";
+  const set = (k: string) => (e: { target: { value: string } }) => {
+    const value = e.target.value;
+    setValues((current) => {
+      if (k === "gradeLevel" && value !== "Grade 11" && value !== "Grade 12") {
+        return { ...current, gradeLevel: value, trackStrand: "" };
+      }
+      return { ...current, [k]: value };
+    });
+  };
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -98,6 +106,9 @@ export default function EditDetailsForm({
             <label className="lbl" htmlFor="edit_gradeLevel">Grade Level</label>
             <select id="edit_gradeLevel" className="inp" value={values.gradeLevel} onChange={set("gradeLevel")}>
               <option value="">Select…</option>
+              {values.gradeLevel && !(GRADE_LEVELS as readonly string[]).includes(values.gradeLevel) && (
+                <option value={values.gradeLevel}>Existing record: {values.gradeLevel} (select a current grade)</option>
+              )}
               {GRADE_LEVELS.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
@@ -110,12 +121,15 @@ export default function EditDetailsForm({
           {textField("suffix", "Suffix (optional)")}
           <div>
             <label className="lbl" htmlFor="edit_trackStrand">Track / Strand</label>
-            <select id="edit_trackStrand" className="inp" value={values.trackStrand || ""} onChange={set("trackStrand")}>
-              <option value="">None</option>
+            <select id="edit_trackStrand" className="inp" value={isShs && (TRACK_STRANDS as readonly string[]).includes(values.trackStrand || "") ? values.trackStrand : ""} onChange={set("trackStrand")} disabled={!isShs}>
+              <option value="">{isShs ? "Select STEM or HUMSS…" : "Only applies to Grades 11–12"}</option>
               {TRACK_STRANDS.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            {isShs && values.trackStrand && !(TRACK_STRANDS as readonly string[]).includes(values.trackStrand) && (
+              <p className="text-muted mt-1 text-xs">Stored value “{values.trackStrand}” is no longer offered. Select STEM or HUMSS.</p>
+            )}
             {errors.trackStrand && <p className="field-error" role="alert">{errors.trackStrand}</p>}
           </div>
           <div>

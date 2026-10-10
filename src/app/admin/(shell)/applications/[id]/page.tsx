@@ -15,6 +15,8 @@ import {
   adminUsers,
   auditLogs,
   notificationLogs,
+  printBatchItems,
+  printBatches,
   studentApplications,
 } from "@/db/schema";
 import StatusBadge from "@/components/status-badge";
@@ -50,6 +52,21 @@ export default async function ApplicationDetailPage({
   const row = rows[0];
   if (!row) notFound();
   const app = row.app;
+  const claimAdminRows = app.claimedByAdminId
+    ? await db
+        .select({ fullName: adminUsers.fullName })
+        .from(adminUsers)
+        .where(eq(adminUsers.id, app.claimedByAdminId))
+        .limit(1)
+    : [];
+  const claimAdminName = claimAdminRows[0]?.fullName ?? null;
+  const batchRows = await db
+    .select({ batchCode: printBatches.batchCode, printedAt: printBatches.printedAt })
+    .from(printBatchItems)
+    .innerJoin(printBatches, eq(printBatches.id, printBatchItems.batchId))
+    .where(eq(printBatchItems.applicationId, app.id))
+    .limit(1);
+  const batchQueued = app.status === "approved" && Boolean(batchRows[0]) && !batchRows[0].printedAt;
 
   const history = await db
     .select({ log: auditLogs, admin: adminUsers })
@@ -125,6 +142,18 @@ export default async function ApplicationDetailPage({
                 </div>
               )}
             </div>
+            {app.studentSignatureDataUrl && (
+              <div className="mt-3 rounded-md border p-3" style={{ borderColor: "var(--line)" }}>
+                <p className="lbl !mb-2">Student signature on file</p>
+                {/* This student-provided signature is shown only in the authenticated admin record. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={app.studentSignatureDataUrl}
+                  alt={`Student signature for ${fullName(app)}`}
+                  className="h-16 w-full object-contain"
+                />
+              </div>
+            )}
             {app.status === "rejected" && app.rejectionReason && (
               <div
                 className="mt-3 flex items-start gap-2 rounded-md border px-3 py-2.5 text-xs"
@@ -147,6 +176,11 @@ export default async function ApplicationDetailPage({
             status={app.status}
             csrfToken={ctx.csrfToken}
             hasPhoto={Boolean(app.photoStorageKey)}
+            applicationCode={app.applicationCode}
+            studentName={fullName(app)}
+            studentIdNumber={app.studentIdNumber}
+            batchQueued={batchQueued}
+            batchCode={batchRows[0]?.batchCode ?? null}
           />
         </div>
 
@@ -170,6 +204,8 @@ export default async function ApplicationDetailPage({
               {info("Emergency Contact", app.emergencyContactName)}
               {info("Emergency Phone", app.emergencyContactPhone)}
               {info("Last Updated", <span className="text-xs">{formatDateTime(app.updatedAt)}</span>)}
+              {app.printedAt && info("Printed At", <span className="text-xs">{formatDateTime(app.printedAt)}</span>)}
+              {app.claimedAt && info("ID Claimed", <span className="text-xs">{formatDateTime(app.claimedAt)}{claimAdminName ? ` · ${claimAdminName}` : ""}</span>)}
             </dl>
           </section>
 

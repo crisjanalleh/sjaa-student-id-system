@@ -12,8 +12,9 @@
   --slate-gray: #4a5568;
   --bg: #f8fafc;
   --card: #ffffff;
+  --elevated: #ffffff;
   --ink: #0f172a;
-  --muted: #64748b;
+  --muted: #4a5568;
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
   --field-bg: #ffffff;
@@ -21,21 +22,46 @@
   --sidebar-ink: #e2e8f0;
   --danger: #b91c1c;
   --success: #15803d;
+  --badge-pending-bg: #fef3c7;
+  --badge-pending-ink: #92400e;
+  --badge-pending-line: #fde68a;
+  --badge-approved-bg: #dcfce7;
+  --badge-approved-ink: #166534;
+  --badge-approved-line: #bbf7d0;
+  --badge-rejected-bg: #fee2e2;
+  --badge-rejected-ink: #991b1b;
+  --badge-rejected-line: #fecaca;
+  --badge-printed-bg: #dbeafe;
+  --badge-printed-ink: #1e40af;
+  --badge-printed-line: #bfdbfe;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0f172a;
-  --card: #1e293b;
-  --ink: #e2e8f0;
-  --muted: #94a3b8;
-  --line: #334155;
-  --line-strong: #475569;
-  --field-bg: #0f1b33;
-  --sidebar-bg: #141d33;
-  --sidebar-ink: #e2e8f0;
-  --danger: #ef4444;
+  --bg: #161c27;
+  --card: #202a38;
+  --elevated: #273445;
+  --ink: #f1f5f9;
+  --muted: #bac4d0;
+  --line: #364354;
+  --line-strong: #4a5a6d;
+  --field-bg: #17202d;
+  --sidebar-bg: #1b2a4a;
+  --sidebar-ink: #f1f5f9;
+  --danger: #f87171;
   --success: #4ade80;
+  --badge-pending-bg: #423719;
+  --badge-pending-ink: #f3d98b;
+  --badge-pending-line: #6f5929;
+  --badge-approved-bg: #1b3a2a;
+  --badge-approved-ink: #9fe0b3;
+  --badge-approved-line: #2e5e42;
+  --badge-rejected-bg: #402b30;
+  --badge-rejected-ink: #f2aab3;
+  --badge-rejected-line: #694047;
+  --badge-printed-bg: #1c334a;
+  --badge-printed-ink: #a8d2f5;
+  --badge-printed-line: #315273;
 }
 
 html {
@@ -52,17 +78,30 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --bg: #0f172a;
-    --card: #1e293b;
-    --ink: #e2e8f0;
-    --muted: #94a3b8;
-    --line: #334155;
-    --line-strong: #475569;
-    --field-bg: #0f1b33;
-    --sidebar-bg: #141d33;
-    --sidebar-ink: #e2e8f0;
-    --danger: #ef4444;
+    --bg: #161c27;
+    --card: #202a38;
+    --elevated: #273445;
+    --ink: #f1f5f9;
+    --muted: #bac4d0;
+    --line: #364354;
+    --line-strong: #4a5a6d;
+    --field-bg: #17202d;
+    --sidebar-bg: #1b2a4a;
+    --sidebar-ink: #f1f5f9;
+    --danger: #f87171;
     --success: #4ade80;
+    --badge-pending-bg: #423719;
+    --badge-pending-ink: #f3d98b;
+    --badge-pending-line: #6f5929;
+    --badge-approved-bg: #1b3a2a;
+    --badge-approved-ink: #9fe0b3;
+    --badge-approved-line: #2e5e42;
+    --badge-rejected-bg: #402b30;
+    --badge-rejected-ink: #f2aab3;
+    --badge-rejected-line: #694047;
+    --badge-printed-bg: #1c334a;
+    --badge-printed-ink: #a8d2f5;
+    --badge-printed-line: #315273;
   }
 }
 
@@ -84,15 +123,16 @@ body {
 @media (prefers-color-scheme: dark) {
   .student-application-page {
     color-scheme: dark;
-    background: #0f172a;
-    color: #e2e8f0;
-    --bg: #0f172a;
-    --card: #1e293b;
-    --ink: #e2e8f0;
-    --muted: #cbd5e1;
-    --line: #334155;
-    --line-strong: #64748b;
-    --field-bg: #0f1b33;
+    background: #161c27;
+    color: #f1f5f9;
+    --bg: #161c27;
+    --card: #202a38;
+    --elevated: #273445;
+    --ink: #f1f5f9;
+    --muted: #bac4d0;
+    --line: #364354;
+    --line-strong: #4a5a6d;
+    --field-bg: #17202d;
     --danger: #f87171;
     --success: #4ade80;
   }
@@ -112,7 +152,7 @@ body {
 .card {
   min-width: 0;
   box-sizing: border-box;
-  background: var(--card);
+  background: var(--elevated);
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 3px 12px rgba(15, 23, 42, 0.07);
@@ -261,28 +301,28 @@ textarea.inp {
   white-space: nowrap;
 }
 .badge-pending {
-  background: #fef3c7; color: #92400e; border-color: #fde68a;
+  background: var(--badge-pending-bg); color: var(--badge-pending-ink); border-color: var(--badge-pending-line);
 }
 .badge-approved {
-  background: #dcfce7; color: #166534; border-color: #bbf7d0;
+  background: var(--badge-approved-bg); color: var(--badge-approved-ink); border-color: var(--badge-approved-line);
 }
 .badge-rejected {
-  background: #fee2e2; color: #991b1b; border-color: #fecaca;
+  background: var(--badge-rejected-bg); color: var(--badge-rejected-ink); border-color: var(--badge-rejected-line);
 }
 .badge-printed {
-  background: #dbeafe; color: #1e40af; border-color: #bfdbfe;
+  background: var(--badge-printed-bg); color: var(--badge-printed-ink); border-color: var(--badge-printed-line);
 }
 .badge-claimed {
   background: var(--line); color: var(--muted); border-color: var(--line-strong);
 }
 .badge-active {
-  background: #dcfce7; color: #166534; border-color: #bbf7d0;
+  background: var(--badge-approved-bg); color: var(--badge-approved-ink); border-color: var(--badge-approved-line);
 }
 .badge-inactive {
   background: var(--line); color: var(--muted); border-color: var(--line-strong);
 }
 .badge-expired {
-  background: #fee2e2; color: #991b1b; border-color: #fecaca;
+  background: var(--badge-rejected-bg); color: var(--badge-rejected-ink); border-color: var(--badge-rejected-line);
 }
 
 /* --- Tables --------------------------------------------------------------- */
@@ -425,15 +465,14 @@ textarea.inp {
 }
 .admin-brand-mark {
   display: flex;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--accent-gold) 65%, transparent);
-  border-radius: 50%;
-  background: var(--primary-navy);
-  color: var(--accent-gold);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -450,7 +489,8 @@ textarea.inp {
   font-weight: 700;
 }
 .admin-nav-wrap {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid color-mix(in srgb, var(--sidebar-ink) 16%, transparent);
+  background: var(--sidebar-bg);
   overflow-x: auto;
   scrollbar-width: thin;
 }
@@ -471,7 +511,7 @@ textarea.inp {
   border-bottom: 2px solid transparent;
   border-radius: 8px 8px 0 0;
   padding: 13px 14px 11px;
-  color: var(--muted);
+  color: var(--sidebar-ink);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -483,16 +523,21 @@ textarea.inp {
     transform 0.18s ease;
 }
 .admin-nav-link:hover {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--bg) 65%, var(--card));
+  color: #ffffff;
+  background: color-mix(in srgb, var(--sidebar-ink) 12%, var(--sidebar-bg));
   transform: translateY(-1px);
 }
 .admin-nav-link[data-active="true"] {
   border-bottom-color: var(--accent-gold);
-  color: var(--primary-navy);
-}
-[data-theme="dark"] .admin-nav-link[data-active="true"] {
   color: var(--accent-gold);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle-sun {
+    display: block;
+  }
+  :root:not([data-theme]) .theme-toggle-moon {
+    display: none;
+  }
 }
 .admin-context-pill {
   display: flex;
@@ -666,10 +711,10 @@ textarea.inp {
 }
 
 /* --- ID card (CR80) ---------------------------------------------------------
-   Exact CR80 size; portrait cards use the same dimensions rotated. */
+   Portrait design uses the standard CR80 physical dimensions without rotation. */
 .id-card {
-  width: 85.6mm;
-  height: 53.98mm;
+  width: 53.98mm;
+  height: 85.6mm;
   position: relative;
   overflow: hidden;
   background: #ffffff;
@@ -693,6 +738,9 @@ textarea.inp {
   text-align: center;
 }
 .portrait-card-heading > [aria-hidden="true"] {
+  margin-bottom: 0.8mm;
+}
+.portrait-card-heading .sjaa-card-logo {
   margin-bottom: 0.8mm;
 }
 .portrait-school-name {
@@ -924,6 +972,357 @@ textarea.inp {
   text-align: center;
 }
 
+.student-signature-pad {
+  height: 88px;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.sjaa-card-wave {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 10mm;
+  pointer-events: none;
+}
+
+.sjaa-front-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 17mm;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1.4mm 2.6mm 1mm;
+  background: #073c75;
+  color: #fff;
+}
+
+.sjaa-front-brand {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+}
+
+.sjaa-front-brand .sjaa-card-logo {
+  width: 10mm;
+  height: 10mm;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.sjaa-front-school-name {
+  color: #f2c94c;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.2px;
+}
+
+.sjaa-front-motto {
+  margin-top: 0.7mm;
+  color: #fff;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 5px;
+  font-style: italic;
+  text-align: center;
+}
+
+.sjaa-front-location {
+  margin-top: 0.3mm;
+  color: #dce8f5;
+  font-size: 4.8px;
+  text-align: center;
+}
+
+.sjaa-front-level {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 6.5mm;
+  align-items: center;
+  justify-content: center;
+  background: #f5f3ed;
+  color: #202938;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.sjaa-front-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1mm 2.2mm 8mm;
+  background: #f5f3ed;
+  text-align: center;
+}
+
+.sjaa-front-photo {
+  display: flex;
+  width: 33mm;
+  height: 31mm;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 0.8mm solid #f0c52f;
+  background: #fff;
+}
+
+.sjaa-front-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.sjaa-front-name {
+  display: -webkit-box;
+  max-width: 100%;
+  max-height: 5mm;
+  margin-top: 1mm;
+  color: #111827;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 800;
+  line-height: 1.05;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.sjaa-front-lrn {
+  max-height: 4.5mm;
+  margin-top: 0.7mm;
+  color: #07539a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+}
+
+.sjaa-front-lrn span {
+  color: #07539a;
+}
+
+.sjaa-student-signature {
+  position: relative;
+  display: flex;
+  width: 31mm;
+  height: 7mm;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 0.3mm;
+}
+
+.sjaa-student-signature img {
+  position: absolute;
+  bottom: 0.8mm;
+  width: 29mm;
+  height: 7mm;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.sjaa-student-signature-line {
+  width: 100%;
+  border-bottom: 0.25mm solid #333;
+}
+
+.sjaa-student-signature-label {
+  margin-top: 0.4mm;
+  color: #333;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 5px;
+  font-weight: 700;
+}
+
+.sjaa-back-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 12mm;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2mm;
+  background: #073c75;
+  color: #f2c94c;
+}
+
+.sjaa-back-header::after {
+  position: absolute;
+  right: 0;
+  bottom: -3mm;
+  left: 0;
+  height: 5mm;
+  background: #f0c52f;
+  clip-path: ellipse(70% 45% at 40% 0%);
+  content: "";
+}
+
+.sjaa-back-header-text {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 6.3px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.sjaa-back-header .sjaa-card-logo {
+  position: absolute;
+  z-index: 2;
+  top: 1mm;
+  right: 3mm;
+  width: 9mm;
+  height: 9mm;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.sjaa-back-body {
+  position: relative;
+  z-index: 1;
+  padding: 4mm 3mm 0;
+  color: #171717;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.sjaa-back-instructions {
+  margin: 0 0 2mm;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1.18;
+  text-align: center;
+}
+
+.sjaa-back-contact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1mm;
+}
+
+.sjaa-back-contact {
+  display: flex;
+  min-height: 4mm;
+  align-items: center;
+  gap: 1.6mm;
+  font-size: 6px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.sjaa-back-contact:nth-child(1) strong,
+.sjaa-back-contact:nth-child(2) span {
+  display: -webkit-box;
+  max-height: 5mm;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.sjaa-back-contact svg {
+  width: 4mm;
+  height: 4mm;
+  flex: 0 0 4mm;
+  padding: 0.5mm;
+  border: 0.25mm solid #324b69;
+  border-radius: 50%;
+  color: #183c65;
+}
+
+.sjaa-validation-title {
+  margin: 2.1mm 0 0.7mm;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.sjaa-validation-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #183c65;
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+.sjaa-validation-table th,
+.sjaa-validation-table td {
+  border: 0.25mm solid #27649a;
+}
+
+.sjaa-validation-table th {
+  height: 4mm;
+  padding: 0.3mm;
+  font-size: 4.6px;
+  white-space: nowrap;
+}
+
+.sjaa-validation-table td {
+  height: 11mm;
+}
+
+.sjaa-validation-table .sjaa-card-logo {
+  width: 7mm;
+  height: 7mm;
+  vertical-align: middle;
+}
+
+.sjaa-principal-signature {
+  position: absolute;
+  right: 4mm;
+  bottom: 11mm;
+  left: 4mm;
+  display: flex;
+  min-height: 13mm;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+}
+
+.sjaa-principal-signature img {
+  width: 30mm;
+  max-width: 30mm;
+  height: 8mm;
+  margin-bottom: -0.7mm;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.sjaa-principal-signature strong {
+  max-width: 100%;
+  color: #07539a;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 6.2px;
+  font-weight: 800;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.sjaa-principal-signature span {
+  margin-top: 0.4mm;
+  color: #252525;
+  font-family: Arial, sans-serif;
+  font-size: 5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.application-form .student-signature-pad {
+  max-width: 640px;
+}
+
 .print-sheet {
   display: flex;
   flex-wrap: wrap;
@@ -943,12 +1342,39 @@ textarea.inp {
 }
 
 @media print {
+  [data-print-receipt="true"] body * {
+    visibility: hidden !important;
+  }
+  [data-print-receipt="true"] .application-receipt-print,
+  [data-print-receipt="true"] .application-receipt-print * {
+    visibility: visible !important;
+  }
+  [data-print-receipt="true"] .application-receipt-print {
+    position: fixed;
+    inset: 0;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24mm 18mm;
+    border: 0;
+    border-radius: 0;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    --muted: #4a5568;
+    --ink: #0f172a;
+    --line: #e2e8f0;
+    box-shadow: none;
+  }
   @page {
     size: A4 portrait;
     margin: 10mm;
   }
   body {
     background: #ffffff !important;
+  }
+  .print-output-page {
+    background: #ffffff !important;
+    color: #0f172a !important;
   }
   .no-print {
     display: none !important;
@@ -1021,7 +1447,7 @@ textarea.inp {
   z-index: 80;
 }
 .modal-panel {
-  background: var(--card);
+  background: var(--elevated);
   border: 1px solid var(--line);
   border-radius: 8px;
   width: 100%;

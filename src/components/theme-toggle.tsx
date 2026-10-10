@@ -7,7 +7,8 @@ export default function ThemeToggle() {
   const [storageUnavailable, setStorageUnavailable] = useState(false);
 
   const toggle = () => {
-    const current = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const current = document.documentElement.dataset.theme ||
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     const next = current === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
     try {

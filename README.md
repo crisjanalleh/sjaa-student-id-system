@@ -20,19 +20,25 @@ have accounts or sign in.
 - Encrypted-at-rest QR/link access tokens for student application forms, with
   authenticated viewing and sharing of active links.
 - Student information, required student email, and required ID-photo submission
-  with image validation and private photo storage.
+  with image validation and private photo storage, plus a required handwritten
+  signature captured for the front of the ID.
 - Administrator login and profile editing, application review, rejection, office photo replacement,
   and claiming workflow.
-- Editable ID card template with portrait/landscape CR80 cards, an optional
-  authorized signatory image, adjustable front-card photo/name layout, and
-  paginated duplex batches.
+- Editable, portrait-only CR80 ID cards styled from the supplied school
+  reference: front portrait/LRN/student signature and reverse emergency
+  contacts, school-year validation grid, and principal signature.
+- Application Control Number receipts with copy/print options and an auditable
+  administrator handover flow that distinguishes Approved, Printed, and ID Claimed.
 - Rejection and ready-for-claiming email notifications with a retryable admin
   notification log and student receipt acknowledgement.
 - Audit history, session and CSRF protection, request throttling, and duplicate
   application protection.
-- Student-facing application forms stay in a light theme; track/strand is
-  enabled only for Grades 11–12. Private contact details remain in the
-  application record and are intentionally excluded from the printed card.
+- Student-facing forms follow the device light/dark preference. New applications
+  are limited to Grades 7–12; Grades 11–12 require STEM or HUMSS. Email and
+  non-emergency contact details remain private; the address and emergency
+  contact supplied by the family are printed on the card back.
+- The same supplied SJAA logo image is used in navigation, sign-in, the student
+  form, and ID card designs: `assets/main-logo.png`.
 
 ## Technology
 
@@ -175,6 +181,21 @@ It adds the `orientation` column to `id_template_config` with the existing
 landscape layout as the default. It is safe to run again; it does not drop data.
 New installations already receive the column from `drizzle-kit push`.
 
+Portrait-only ID cards are enforced by the application. For an existing
+installation with the orientation column, normalize the saved template setting
+and change its default with this repeatable migration:
+
+```powershell
+npm run db:migrate:portrait-template
+```
+
+Before applying the migration to a database with real records, export a backup
+from HeidiSQL (**Tools → Export database as SQL**) and confirm the backup file
+is available.
+It changes only the template orientation setting; it does not modify student
+applications, administrators, or batch snapshots. Legacy batch snapshots are
+rendered in portrait by the application.
+
 For installations receiving the signature and optional layout controls, also
 run this additive migration once:
 
@@ -220,6 +241,17 @@ npm run db:migrate:session-expiry-indexes
 
 The migration is additive and safe to repeat. New installations receive these
 indexes through `drizzle-kit push`.
+
+For existing installations adding student handwritten signatures to
+applications, run this additive migration once:
+
+```powershell
+npm run db:migrate:student-signature
+```
+
+It adds a nullable signature column without changing existing applications.
+New submissions require a drawn signature, which is normalized as a transparent
+PNG and stored with the private application record.
 
 Administrators can access their profile, theme toggle, and sign-out controls
 from the floating **Workspace** menu. Student application forms follow the
@@ -311,7 +343,8 @@ server, and installing HeidiSQL does not configure email. The app cannot send
 email just because the student record contains an email address.
 
 Notifications are sent when an administrator **rejects** a student photo or
-creates a **print batch** (ready-for-claiming message). Submission by itself
+confirms that a batch has actually printed and is ready for collection.
+Submission by itself
 does not send a confirmation email. A missing recipient address also prevents
 delivery. All attempts and errors are recorded under the admin area's
 **Notifications** page.
@@ -372,7 +405,10 @@ messages.
    links created after the profile-sharing migration can be reopened and shared
    from the token registry.
 3. Open that URL in a separate/private browser window.
-4. Fill in a test student application, including a valid photo, and submit.
+4. Fill in a test student application, using a Grade 7–12 selection. Grades 11
+   and 12 require either STEM or HUMSS. Include a valid photo and submit.
+   Copy or print the Application Control Number receipt; present this number to
+   the school office when collecting the physical ID.
 5. Return to the admin window and open **Applications**.
 6. Open the test application and approve or reject it. A rejection should create
    a notification event; with SMTP configured, it should deliver an email.
@@ -386,14 +422,18 @@ messages.
    digital signature.
 8. For printing, approve several test applications, open **Batch Print**, select
    approved records on the current page (up to 20), and create a batch. Larger
-   queues are paginated; print one batch at a time. The system rechecks record
-   eligibility and keeps the front/back card order consistent.
+   queues are paginated; print one batch at a time. Creating a batch reserves
+   records but does not mark them printed or send collection emails.
 9. Open the batch and click **Print cards**. The page waits for student photos
    to finish loading before opening the print dialog. Choose A4 and 100% scale,
    disable browser headers/footers, and verify front/back alignment in print
    preview before printing. Duplex alignment depends on printer settings, so
-   test with sample records first.
-10. After handover, mark the printed record as claimed.
+   test with sample records first. After printing successfully, use the on-page
+   confirmation to mark the batch printed and send ready-for-collection notices.
+10. When the student visits the office, search the secured **Applications** page
+    by Application Control Number, verify the student's identity according to
+    school procedure, hand over the physical ID, and confirm **Mark ID as
+    Claimed**. The control number is only a lookup reference, not proof of identity.
 
 Avoid entering real student personal information in a personal/development
 instance unless the school has approved its use and data handling.

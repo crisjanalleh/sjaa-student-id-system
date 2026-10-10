@@ -131,7 +131,7 @@ export default async function ApplicationsPage({
               name="q"
               className="inp"
               defaultValue={q}
-              placeholder="Control no., Student ID/LRN, or name…"
+              placeholder="Application Control Number, Student ID/LRN, or name…"
               maxLength={80}
             />
           </div>

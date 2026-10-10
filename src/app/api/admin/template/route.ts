@@ -5,7 +5,11 @@ import { db } from "@/db";
 import { idTemplateConfig } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { normalizeCardDesign } from "@/lib/card-design";
 import { getTemplateConfigForUpdate } from "@/lib/template";
 import { cleanText } from "@/lib/validate";
@@ -26,16 +30,16 @@ export async function POST(req: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 2 * 1024 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Template update is too large. Signature images must be 1 MB or smaller." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 
   const schoolYear = cleanText(body.schoolYear).replace("–", "-").slice(0, 20);
-  const orientation =
-    body.orientation === "landscape" || body.orientation === "portrait"
-      ? body.orientation
-      : null;
+  const orientation = "portrait" as const;
   const signatoryName = cleanText(body.signatoryName).slice(0, 150);
   const signatoryTitle = cleanText(body.signatoryTitle).slice(0, 150);
   const submittedVersion = body.version;
@@ -61,13 +65,6 @@ export async function POST(req: Request) {
 
   if (!SCHOOL_YEAR_RE.test(schoolYear)) {
     errors.schoolYear = "Enter a valid school year (e.g. 2026-2027).";
-  }
-  if (orientation === null) {
-    return json(422, {
-      ok: false,
-      error: "Choose portrait or landscape card orientation.",
-      errors: { orientation: "Choose portrait or landscape card orientation." },
-    });
   }
   if (rawSignature !== null && rawSignature !== undefined) {
     if (

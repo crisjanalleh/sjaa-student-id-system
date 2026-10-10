@@ -49,7 +49,7 @@ export default async function TemplatePage() {
         csrfToken={ctx!.csrfToken}
         initial={{
           schoolYear: row.schoolYear,
-          orientation: row.orientation,
+          orientation: "portrait",
           showBloodType: row.showBloodType,
           showTrackStrand: row.showTrackStrand,
           showEmergencyContact: row.showEmergencyContact,

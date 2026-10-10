@@ -2,6 +2,8 @@
 
 import type { AdminTemplateConfig } from "@/db/schema";
 import type { CSSProperties } from "react";
+import { House, Phone, UserRound } from "lucide-react";
+import SjaaLogo from "@/components/sjaa-logo";
 
 export type IdCardData = {
   controlNo: string;
@@ -12,6 +14,8 @@ export type IdCardData = {
   bloodType: string | null;
   emergencyContactName: string;
   emergencyContactPhone: string;
+  address: string;
+  studentSignatureDataUrl: string | null;
 };
 
 const MM = 3.7795275591; // CSS px per millimetre at 96dpi
@@ -26,39 +30,34 @@ function cardSize(orientation: AdminTemplateConfig["orientation"]) {
 function signatorySignatureStyle(template: AdminTemplateConfig): CSSProperties {
   const design = template.designSettings;
   return {
-    width: `${34 * design.signatoryScale}mm`,
-    maxWidth: `${34 * design.signatoryScale}mm`,
+    width: `${30 * design.signatoryScale}mm`,
+    maxWidth: `${30 * design.signatoryScale}mm`,
     height: `${8 * design.signatoryScale}mm`,
     transform: `translate(${design.signatoryOffsetX}mm, ${design.signatoryOffsetY}mm)`,
     transformOrigin: "center bottom",
   };
 }
 
-function Monogram() {
-  // Neutral placeholder seal — NOT an official logo. The slot is ready for
-  // the school's official logo asset when provided.
+function SchoolLogo() {
+  return <SjaaLogo className="sjaa-card-logo h-[8.5mm] w-[8.5mm] shrink-0 object-contain" />;
+}
+
+function CardWave() {
   return (
-    <div
-      style={{
-        width: "8.5mm",
-        height: "8.5mm",
-        borderRadius: "50%",
-        background: "#E5A823",
-        color: "#1B2A4A",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: "6.5px",
-        fontWeight: 800,
-        letterSpacing: "0.4px",
-        flexShrink: 0,
-        border: "0.3mm solid rgba(255,255,255,.55)",
-      }}
-      aria-hidden
-    >
-      SJAA
-    </div>
+    <svg className="sjaa-card-wave" viewBox="0 0 540 100" preserveAspectRatio="none" aria-hidden="true">
+      <path fill="#f0c52f" d="M0 39C115 92 206 58 297 30c95-29 148-22 243 10v60H0Z" />
+      <path fill="#07539a" d="M0 59c104 34 190 30 294 0 105-31 168-31 246-7v48H0Z" />
+    </svg>
   );
+}
+
+function validationYears(schoolYear: string): string[] {
+  const startYear = Number(schoolYear.match(/\d{4}/)?.[0]);
+  const first = Number.isInteger(startYear) ? startYear : new Date().getFullYear();
+  return Array.from({ length: 4 }, (_, index) => {
+    const start = first + index;
+    return `${start} - ${start + 1}`;
+  });
 }
 
 function CardFront({
@@ -81,15 +80,21 @@ function CardFront({
         data-orientation={template.orientation}
         aria-label="ID card front"
       >
-        <div className="portrait-card-heading">
-          <Monogram />
-          <div className="portrait-school-name">SAN JOSE ADVENTIST ACADEMY</div>
-          <div className="portrait-school-motto">&ldquo;The School that Trains for Service.&rdquo;</div>
-          <div className="portrait-school-location">San Jose, Occ. Mindoro · Est. 1996</div>
-          <div className="portrait-school-year">S.Y. {template.schoolYear}</div>
+        <div className="sjaa-front-header">
+          <div className="sjaa-front-brand">
+            <SchoolLogo />
+            <div className="sjaa-front-school-name">SAN JOSE ADVENTIST<br />ACADEMY INC.</div>
+          </div>
+          <div className="sjaa-front-motto">&ldquo;The School that Trains for Service.&rdquo;</div>
+          <div className="sjaa-front-location">San Jose, Occidental Mindoro</div>
         </div>
-        <div className="portrait-card-body">
-          <div className="portrait-student-photo" style={{ transform: photoTransform }}>
+        <div className="sjaa-front-level">
+          {data.gradeLevel === "Grade 11" || data.gradeLevel === "Grade 12"
+            ? "SENIOR HIGH SCHOOL"
+            : "JUNIOR HIGH SCHOOL"}
+        </div>
+        <div className="sjaa-front-body">
+          <div className="sjaa-front-photo" style={{ transform: photoTransform }}>
             {photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={photoUrl} alt="Student" />
@@ -99,30 +104,23 @@ function CardFront({
               </svg>
             )}
           </div>
-          <div className="portrait-student-label">STUDENT NAME</div>
-          <div
-            className="portrait-student-name"
-            style={{ fontSize: `${design.nameFontSize}px`, transform: nameTransform }}
-          >
+          <div className="sjaa-front-name" style={{ fontSize: `${design.nameFontSize}px`, transform: nameTransform }}>
             {data.fullNameLine}
           </div>
-          <div className="portrait-gold-rule" />
-          <div className="portrait-student-field">
-            <span style={{ fontSize: `${5 * design.detailFontScale}px` }}>STUDENT ID / LRN</span>
-            <strong style={{ fontSize: `${7.5 * design.detailFontScale}px` }}>{data.studentIdNumber}</strong>
+          <div className="sjaa-front-lrn">
+            <span>LRN:</span> {data.studentIdNumber}
           </div>
-          <div className="portrait-student-field">
-            <span style={{ fontSize: `${5 * design.detailFontScale}px` }}>GRADE LEVEL</span>
-            <strong style={{ fontSize: `${7.5 * design.detailFontScale}px` }}>
-              {data.gradeLevel}
-              {template.showTrackStrand && data.trackStrand
-                ? ` · ${data.trackStrand.split("—")[0].trim()}`
-                : ""}
-            </strong>
+          <div className="sjaa-student-signature">
+            {data.studentSignatureDataUrl && (
+              // The normalized signature is held in the private application record.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.studentSignatureDataUrl} alt="" />
+            )}
+            <span className="sjaa-student-signature-line" />
+            <span className="sjaa-student-signature-label">Student Signature</span>
           </div>
-          <div className="portrait-control-number" style={{ fontSize: `${5 * design.detailFontScale}px` }}>{data.controlNo}</div>
         </div>
-        <div className="portrait-card-footer">STUDENT IDENTIFICATION CARD · SJAA</div>
+        <CardWave />
       </div>
     );
   }
@@ -146,7 +144,7 @@ function CardFront({
           padding: "1.2mm 2.4mm",
         }}
       >
-        <Monogram />
+        <SchoolLogo />
         <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
           <div style={{ fontSize: "8.5px", fontWeight: 800, letterSpacing: "0.2px" }}>
             SAN JOSE ADVENTIST ACADEMY
@@ -297,55 +295,64 @@ function CardBack({
         data-orientation={template.orientation}
         aria-label="ID card back"
       >
-        <div className="portrait-back-heading">SAN JOSE ADVENTIST ACADEMY</div>
-        <div className="portrait-back-body">
+        <div className="sjaa-back-header">
+          <div className="sjaa-back-header-text">SAN JOSE ADVENTIST ACADEMY INC.</div>
+          <SchoolLogo />
+        </div>
+        <div className="sjaa-back-body">
+          <h2 className="sjaa-back-instructions">
+            In case of emergency or loss of this School ID, please contact:
+          </h2>
           {template.showEmergencyContact && (
-            <section className="portrait-back-section">
-              <div className="portrait-back-label">IN CASE OF EMERGENCY, PLEASE NOTIFY</div>
-              <strong>{data.emergencyContactName}</strong>
-              <span>{data.emergencyContactPhone}</span>
-            </section>
+            <div className="sjaa-back-contact-list">
+              <div className="sjaa-back-contact">
+                <UserRound aria-hidden />
+                <strong>{data.emergencyContactName}</strong>
+              </div>
+              <div className="sjaa-back-contact">
+                <House aria-hidden />
+                <span>{data.address}</span>
+              </div>
+              <div className="sjaa-back-contact">
+                <Phone aria-hidden />
+                <span>{data.emergencyContactPhone}</span>
+              </div>
+            </div>
           )}
-          <div className="portrait-back-facts">
-            {template.showBloodType && (
-              <section className="portrait-back-section">
-                <div className="portrait-back-label">BLOOD TYPE</div>
-                <strong className="portrait-blood-type">{data.bloodType || "—"}</strong>
-              </section>
-            )}
-            {template.showTrackStrand && data.trackStrand && (
-              <section className="portrait-back-section">
-                <div className="portrait-back-label">TRACK / STRAND</div>
-                <strong>{data.trackStrand}</strong>
-              </section>
-            )}
-          </div>
-          <div className="portrait-back-meta">
-            <div>
-              Control No.: <strong>{data.controlNo}</strong>
-              <br />
-              School Year: {template.schoolYear}
-            </div>
-            <div className="portrait-signatory">
-              {template.designSettings.signatorySignature && (
-                // Signature data is normalized to a bounded, re-encoded PNG by the template API.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  className="signatory-signature"
-                  src={template.designSettings.signatorySignature}
-                  alt=""
-                  style={signatorySignatureStyle(template)}
-                />
-              )}
-              <span />
-              <strong>{template.signatoryName || " "}</strong>
-              <small>{template.signatoryTitle || " "}</small>
-            </div>
-          </div>
+          <h3 className="sjaa-validation-title">VALIDATION</h3>
+          <table className="sjaa-validation-table">
+            <thead>
+              <tr>
+                {validationYears(template.schoolYear).map((year) => (
+                  <th key={year}>{year}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {validationYears(template.schoolYear).map((year, index) => (
+                  <td key={year}>
+                    {index === 0 && <SchoolLogo />}
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div className="portrait-back-footer">
-          &ldquo;The School that Trains for Service.&rdquo; · San Jose, Occ. Mindoro · Est. 1996
+        <div className="sjaa-principal-signature">
+          {template.designSettings.signatorySignature && (
+            // Signature data is normalized to a bounded, re-encoded PNG by the template API.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={template.designSettings.signatorySignature}
+              alt=""
+              style={signatorySignatureStyle(template)}
+            />
+          )}
+          <strong>{template.signatoryName || " "}</strong>
+          <span>{template.signatoryTitle || "SCHOOL PRINCIPAL"}</span>
         </div>
+        <CardWave />
       </div>
     );
   }
@@ -480,10 +487,14 @@ export function IdCard({
   variant: "front" | "back";
   photoUrl?: string | null;
 }) {
+  const portraitTemplate: AdminTemplateConfig =
+    template.orientation === "portrait"
+      ? template
+      : { ...template, orientation: "portrait" };
   return variant === "front" ? (
-    <CardFront data={data} template={template} photoUrl={photoUrl} />
+    <CardFront data={data} template={portraitTemplate} photoUrl={photoUrl} />
   ) : (
-    <CardBack data={data} template={template} />
+    <CardBack data={data} template={portraitTemplate} />
   );
 }
 
@@ -499,7 +510,7 @@ export function ScaledIdCard({
   variant: "front" | "back";
   photoUrl?: string | null;
 }) {
-  const dimensions = template.orientation === "portrait" ? PORTRAIT_SIZE : LANDSCAPE_SIZE;
+  const dimensions = PORTRAIT_SIZE;
   const w = dimensions.width * MM * scale;
   const h = dimensions.height * MM * scale;
   return (
@@ -520,4 +531,6 @@ export const SAMPLE_CARD_DATA: IdCardData = {
   bloodType: "O+",
   emergencyContactName: "Maria S. Dela Cruz",
   emergencyContactPhone: "0917 123 4567",
+  address: "Mabini, San Jose, Occidental Mindoro",
+  studentSignatureDataUrl: null,
 };

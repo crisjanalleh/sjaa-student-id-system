@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2, RectangleHorizontal, RectangleVertical, RotateCcw, Save, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { CheckCircle2, Loader2, RotateCcw, Save, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { SAMPLE_CARD_DATA, ScaledIdCard } from "@/components/id-card";
@@ -18,9 +18,9 @@ function ResponsiveCardPreview({
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
-  const cardWidthMm = template.orientation === "portrait" ? 53.98 : 85.6;
-  const cardHeightMm = template.orientation === "portrait" ? 85.6 : 53.98;
-  const maxScale = template.orientation === "portrait" ? 1.55 : 1.45;
+  const cardWidthMm = 53.98;
+  const cardHeightMm = 85.6;
+  const maxScale = 1.55;
   const scale = width
     ? Math.min(maxScale, Math.max(0.4, (width - 8) / (cardWidthMm * 3.7795)))
     : 0.8;
@@ -94,13 +94,13 @@ export default function TemplateEditor({
   csrfToken: string;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<Values>(initial);
+  const [values, setValues] = useState<Values>({ ...initial, orientation: "portrait" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [version, setVersion] = useState(initialVersion);
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(initial));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ ...initial, orientation: "portrait" }));
   const [staleVersion, setStaleVersion] = useState(false);
   const [adjustmentPanel, setAdjustmentPanel] = useState<"signature" | "layout" | null>(null);
   const requestInFlight = useRef(false);
@@ -257,59 +257,35 @@ export default function TemplateEditor({
             />
             {errors.schoolYear && <p className="field-error" role="alert">{errors.schoolYear}</p>}
           </div>
-          <fieldset className="mb-4">
-            <legend className="lbl">Card Orientation</legend>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                { value: "landscape", label: "Landscape", icon: RectangleHorizontal, size: "85.60 × 53.98 mm" },
-                { value: "portrait", label: "Portrait", icon: RectangleVertical, size: "53.98 × 85.60 mm" },
-              ] as const).map(({ value, label, icon: Icon, size }) => {
-                const selected = values.orientation === value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => set("orientation", value)}
-                    className="flex flex-col items-center gap-2 rounded-md border px-3 py-3 text-center transition-colors"
-                    style={{
-                      borderColor: selected ? "var(--academic-blue)" : "var(--line)",
-                      background: selected ? "color-mix(in srgb, var(--academic-blue) 8%, var(--card))" : "var(--card)",
-                      color: selected ? "var(--academic-blue)" : "var(--muted)",
-                    }}
-                  >
-                    <Icon className="h-5 w-5" aria-hidden />
-                    <span className="text-xs font-semibold">{label}</span>
-                    <span className="text-[10px]">{size}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {errors.orientation && <p className="field-error" role="alert">{errors.orientation}</p>}
-          </fieldset>
+          <p className="text-muted mb-4 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--line)" }}>
+            Card orientation is fixed to portrait at standard CR80 dimensions (53.98 × 85.60 mm).
+          </p>
           <div className="mb-4">
             <label className="lbl" htmlFor="tpl_signame">
-              Signatory Name
+              Principal&rsquo;s Name
             </label>
             <input
               id="tpl_signame"
               className="inp"
               value={values.signatoryName}
               onChange={(e) => set("signatoryName", e.target.value)}
-              placeholder="Name printed under the signature line"
+              placeholder="Enter the principal&rsquo;s name"
               maxLength={150}
             />
           </div>
+          <p className="text-muted mb-4 rounded-md border px-3 py-2 text-xs leading-relaxed" style={{ borderColor: "var(--line)" }} role="note">
+            Use the current principal&rsquo;s verified name and title. The reference image is blurry, so do not rely on text guessed from the sample when preparing official cards.
+          </p>
           <div className="mb-5">
             <label className="lbl" htmlFor="tpl_sigtitle">
-              Signatory Title
+              Principal&rsquo;s Title
             </label>
             <input
               id="tpl_sigtitle"
               className="inp"
               value={values.signatoryTitle}
               onChange={(e) => set("signatoryTitle", e.target.value)}
-              placeholder="e.g. School Registrar"
+              placeholder="e.g. School Principal"
               maxLength={150}
               aria-invalid={Boolean(errors.signatoryTitle)}
             />
@@ -318,9 +294,9 @@ export default function TemplateEditor({
 
           <section className="mb-5 rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
             <div className="mb-2">
-              <h3 className="text-sm font-bold">Authorized Signatory Image</h3>
+              <h3 className="text-sm font-bold">Principal&rsquo;s Signature</h3>
               <p className="text-muted mt-1 text-xs leading-relaxed">
-                Upload a PNG or JPG of the approved signatory&rsquo;s handwritten signature. For the cleanest result, use an image with a transparent background; an opaque background may overlap or obscure card details. This is a printed image, not a cryptographic or legally verified digital signature.
+                Upload the school principal&rsquo;s approved handwritten signature as a PNG or JPG. A transparent PNG gives the closest match to the supplied card reference. This is a printed image, not a cryptographic or legally verified digital signature.
               </p>
             </div>
             <input

@@ -15,6 +15,8 @@ import {
 } from "@/lib/request";
 import { hasErrors, validateApplicationFields } from "@/lib/validate";
 import { duplicateEntryMessage, isDuplicateEntry } from "@/lib/db-errors";
+import { formatDateTime } from "@/lib/format";
+import { processStudentSignature, StudentSignatureError } from "@/lib/student-signature";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,7 +151,40 @@ export async function POST(req: Request) {
     return json(409, { ok: false, error: DUPLICATE_MESSAGE, errors: duplicateErrors });
   }
 
-  // 6. Secure photo pipeline (required for the student ID).
+  // 6. The student signature is required and normalized as a transparent PNG.
+  const signatureValue = formData.get("studentSignature");
+  if (
+    typeof signatureValue !== "string" ||
+    signatureValue.length > 410_000 ||
+    !/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/.test(signatureValue)
+  ) {
+    await countFailure();
+    return json(422, {
+      ok: false,
+      error: "",
+      errors: { studentSignature: "Draw your signature in the signature pad before submitting." },
+    });
+  }
+  let studentSignatureDataUrl: string;
+  try {
+    studentSignatureDataUrl = await processStudentSignature(
+      Buffer.from(signatureValue.slice(signatureValue.indexOf(",") + 1), "base64"),
+    );
+  } catch (err) {
+    await countFailure();
+    return json(422, {
+      ok: false,
+      error: "",
+      errors: {
+        studentSignature:
+          err instanceof StudentSignatureError
+            ? err.message
+            : "The signature could not be processed. Please sign again.",
+      },
+    });
+  }
+
+  // 7. Secure photo pipeline (required for the student ID).
   let photoKey: string | null = null;
   const photo = formData.get("photo");
   if (!(photo instanceof File) || photo.size === 0) {
@@ -174,9 +209,10 @@ export async function POST(req: Request) {
     }
   }
 
-  // 7. Insert with collision-retried control number inside enforced uniqueness.
+  // 8. Insert with collision-retried control number inside enforced uniqueness.
   for (let attempt = 0; attempt < 3; attempt++) {
     const code = newApplicationCode();
+    const submittedAt = new Date();
     try {
       await db.transaction(async (tx) => {
         await tx.insert(studentApplications).values({
@@ -195,8 +231,11 @@ export async function POST(req: Request) {
           emergencyContactPhone: values.emergencyContactPhone,
           bloodType: values.bloodType,
           photoStorageKey: photoKey,
+          studentSignatureDataUrl,
           accessTokenId: ctx.accessTokenId,
           status: "pending",
+          createdAt: submittedAt,
+          updatedAt: submittedAt,
         });
 
         await audit({
@@ -208,7 +247,11 @@ export async function POST(req: Request) {
         }, tx);
       });
 
-      return json(201, { ok: true, applicationCode: code });
+      return json(201, {
+        ok: true,
+        applicationCode: code,
+        submittedAt: formatDateTime(submittedAt),
+      });
     } catch (err) {
       if (
         isDuplicateEntry(err) &&

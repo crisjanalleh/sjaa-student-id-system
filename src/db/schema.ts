@@ -50,7 +50,7 @@ export const adminUsers = mysqlTable(
 
 export type AdminTemplateConfig = {
   schoolYear: string;
-  orientation: "landscape" | "portrait";
+  orientation: "portrait";
   showBloodType: boolean;
   showTrackStrand: boolean;
   showEmergencyContact: boolean;
@@ -117,6 +117,7 @@ export const studentApplications = mysqlTable(
     emergencyContactPhone: varchar("emergency_contact_phone", { length: 32 }).notNull(),
     bloodType: varchar("blood_type", { length: 8 }),
     photoStorageKey: varchar("photo_storage_key", { length: 128 }),
+    studentSignatureDataUrl: mediumtext("student_signature_data_url"),
     status: mysqlEnum("status", applicationStatusValues).notNull().default("pending"),
     rejectionReason: text("rejection_reason"),
     accessTokenId: int("access_token_id"),
@@ -167,7 +168,7 @@ export const idTemplateConfig = mysqlTable("id_template_config", {
   id: int("id").autoincrement().primaryKey(),
   version: int("version").notNull().default(1),
   schoolYear: varchar("school_year", { length: 20 }).notNull(),
-  orientation: mysqlEnum("orientation", ["landscape", "portrait"]).notNull().default("landscape"),
+  orientation: mysqlEnum("orientation", ["landscape", "portrait"]).notNull().default("portrait"),
   showBloodType: boolean("show_blood_type").notNull().default(true),
   showTrackStrand: boolean("show_track_strand").notNull().default(true),
   showEmergencyContact: boolean("show_emergency_contact").notNull().default(true),

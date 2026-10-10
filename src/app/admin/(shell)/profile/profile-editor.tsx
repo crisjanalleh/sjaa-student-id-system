@@ -124,7 +124,7 @@ export default function ProfileEditor({
       <section className="mb-6">
         <h2 className="mb-4 text-sm font-bold">Profile details</h2>
         <div className="mb-5 flex flex-wrap items-center gap-4">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border bg-slate-100 text-2xl font-bold text-slate-500" style={{ borderColor: "var(--line-strong)" }}>
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border text-2xl font-bold" style={{ borderColor: "var(--line-strong)", background: "var(--elevated)", color: "var(--muted)" }}>
             {profile.avatarDataUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={profile.avatarDataUrl} alt="Administrator profile" className="h-full w-full object-cover" />

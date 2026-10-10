@@ -3,6 +3,7 @@ import { QrCode, ShieldAlert, TimerReset } from "lucide-react";
 import { getFormContext } from "@/lib/auth";
 import { SCHOOL, config } from "@/lib/config";
 import ApplyForm from "./apply-form";
+import SjaaLogo from "@/components/sjaa-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +13,7 @@ function BrandHeader() {
   return (
     <header className="border-b" style={{ borderColor: "var(--line)", background: "var(--primary-navy)" }}>
       <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-4 text-white">
-        <div
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold tracking-wide"
-          style={{ background: "var(--accent-gold)", color: "var(--primary-navy)" }}
-          aria-hidden
-        >
-          SJ
-        </div>
+        <SjaaLogo className="h-11 w-11 shrink-0 rounded-md object-contain" priority />
         <div className="min-w-0">
           <p className="truncate text-[15px] font-bold leading-tight">{SCHOOL.name}</p>
           <p className="truncate text-[11.5px] italic text-slate-300">
@@ -67,6 +62,7 @@ export default async function ApplyPage({
             csrfToken={ctx.csrfToken}
             tokenLabel={ctx.accessTokenLabel}
             privacyNotice={config.privacyNotice}
+            schoolName={SCHOOL.name}
           />
         ) : (
           <>

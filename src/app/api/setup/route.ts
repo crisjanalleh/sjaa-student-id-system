@@ -1,12 +1,13 @@
-import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
-import { db } from "@/db";
-import { adminUsers } from "@/db/schema";
-import { audit } from "@/lib/audit";
+import { createInitialAdmin } from "@/lib/admin-bootstrap";
 import { config } from "@/lib/config";
 import { hashPassword, safeEqual } from "@/lib/crypto";
 import { rateLimitHit } from "@/lib/rate-limit";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { cleanText } from "@/lib/validate";
 import { hashIp } from "@/lib/crypto";
 import { isDuplicateEntry } from "@/lib/db-errors";
@@ -43,8 +44,11 @@ export async function POST(req: Request) {
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 16 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Setup request is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 
@@ -67,28 +71,18 @@ export async function POST(req: Request) {
     return json(422, { ok: false, error: "Password must be at least 12 characters." });
   }
 
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(adminUsers);
-  if (Number(count) > 0) {
-    return json(410, { ok: false, error: "Setup has already been completed and is disabled." });
-  }
-
   try {
-    await db.transaction(async (tx) => {
-      const rows = await tx
-        .insert(adminUsers)
-        .values({ username, fullName, email, passwordHash: hashPassword(password) })
-        .$returningId();
-      await audit({
-        adminId: rows[0].id,
-        action: "admin.setup_completed",
-        entityType: "admin",
-        entityId: rows[0].id,
-        metadata: { method: "web" },
-        ip,
-      }, tx);
+    const adminId = await createInitialAdmin({
+      username,
+      fullName,
+      email,
+      passwordHash: hashPassword(password),
+      method: "web",
+      ip,
     });
+    if (!adminId) {
+      return json(410, { ok: false, error: "Setup has already been completed and is disabled." });
+    }
     return json(201, { ok: true });
   } catch (err) {
     if (isDuplicateEntry(err)) {

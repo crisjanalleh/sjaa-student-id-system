@@ -18,9 +18,14 @@ type Props = {
   status: string;
   csrfToken: string;
   hasPhoto: boolean;
+  applicationCode: string;
+  studentName: string;
+  studentIdNumber: string;
+  batchQueued: boolean;
+  batchCode: string | null;
 };
 
-export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: Props) {
+export default function ApplicationActions({ id, status, csrfToken, hasPhoto, applicationCode, studentName, studentIdNumber, batchQueued, batchCode }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -28,6 +33,8 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [handoverConfirmed, setHandoverConfirmed] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const requestInFlight = useRef(false);
 
@@ -73,8 +80,18 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
     }
   };
 
-  const claim = () =>
-    post(`/api/admin/applications/${id}/transition`, { action: "claim" }, "claim");
+  const claim = async () => {
+    if (!handoverConfirmed) return;
+    const ok = await post(
+      `/api/admin/applications/${id}/transition`,
+      { action: "claim", confirmedHandover: true },
+      "claim",
+    );
+    if (ok) {
+      setClaimOpen(false);
+      setHandoverConfirmed(false);
+    }
+  };
 
   const doDelete = async () => {
     if (requestInFlight.current) return;
@@ -151,7 +168,7 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
         </div>
       )}
       {warning && (
-        <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950" role="status">
+        <div className="mb-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--accent-gold)", background: "color-mix(in srgb, var(--accent-gold) 14%, var(--card))", color: "var(--ink)" }} role="status">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>{warning}</span>
         </div>
@@ -184,19 +201,28 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
         )}
 
         {status === "printed" && (
-          <button type="button" className="btn btn-primary btn-sm" onClick={claim} disabled={Boolean(busy)}>
-            {busy === "claim" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <IdCard className="h-4 w-4" aria-hidden />}
-            Mark Claimed
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setClaimOpen(true)} disabled={Boolean(busy)}>
+            <IdCard className="h-4 w-4" aria-hidden />
+            Mark ID as Claimed
           </button>
         )}
 
-        {status !== "claimed" && (
+        {status !== "claimed" && !batchCode && (
           <button type="button" className="btn btn-outline btn-sm" onClick={() => setDeleteOpen(true)} disabled={Boolean(busy)}>
             <Trash2 className="h-4 w-4" aria-hidden /> Delete
           </button>
         )}
 
-        {status === "approved" && (
+        {status !== "claimed" && batchCode && (
+          <span className="text-muted inline-flex items-center gap-1.5 text-xs" role="status">
+            <CheckCircle2 className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
+            {status === "approved"
+              ? `Reserved in batch ${batchCode}; awaiting print confirmation.`
+              : `Record retained in print batch ${batchCode}.`}
+          </span>
+        )}
+
+        {status === "approved" && !batchQueued && (
           <span className="text-muted inline-flex items-center gap-1.5 text-xs">
             <CheckCircle2 className="h-4 w-4" style={{ color: "var(--success)" }} aria-hidden />
             Eligible for batch printing
@@ -218,6 +244,40 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
           here to return the application to <strong>Pending</strong> for re-review.
           {!hasPhoto && " (No photo is currently on file.)"}
         </p>
+      )}
+
+      {claimOpen && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Confirm physical ID handover">
+          <div className="modal-panel p-5">
+            <h3 className="mb-2 text-sm font-bold">Confirm Physical ID Handover</h3>
+            <p className="text-muted text-xs leading-relaxed">
+              Confirm only after the physical ID has been handed to the student. The control number is a lookup reference, not proof of identity; follow the school&rsquo;s identity verification procedure.
+            </p>
+            <dl className="my-4 grid grid-cols-2 gap-3 rounded-md border p-3 text-xs" style={{ borderColor: "var(--line)" }}>
+              <div><dt className="lbl !mb-0.5">Control Number</dt><dd className="font-mono font-bold">{applicationCode}</dd></div>
+              <div><dt className="lbl !mb-0.5">Student ID / LRN</dt><dd className="font-mono">{studentIdNumber}</dd></div>
+              <div className="col-span-2"><dt className="lbl !mb-0.5">Applicant</dt><dd className="font-semibold">{studentName}</dd></div>
+            </dl>
+            <label className="flex items-start gap-2 text-xs leading-relaxed">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={handoverConfirmed}
+                onChange={(event) => setHandoverConfirmed(event.target.checked)}
+              />
+              <span>I verified the student according to school procedure and have handed over this physical ID.</span>
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="btn btn-outline" onClick={() => { setClaimOpen(false); setHandoverConfirmed(false); }} disabled={busy === "claim"}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary" onClick={claim} disabled={!handoverConfirmed || busy === "claim"}>
+                {busy === "claim" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <IdCard className="h-4 w-4" aria-hidden />}
+                Confirm Handover
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Reject dialog */}
@@ -262,7 +322,7 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto }: 
             <h3 className="mb-2 text-sm font-bold">Delete Application</h3>
             <p className="text-muted text-xs leading-relaxed">
               This performs a soft delete: the record is hidden from all queues while its
-              audit history is preserved. Claimed records cannot be deleted.
+              audit history is preserved. Records in a print batch or already claimed cannot be deleted.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="btn btn-outline" onClick={() => setDeleteOpen(false)} disabled={busy === "delete"}>

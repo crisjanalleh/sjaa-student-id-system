@@ -29,12 +29,12 @@ export async function getTemplateConfig(executor: Executor = db): Promise<Templa
     .values({
       version: 1,
       schoolYear: defaultSchoolYear(),
-      orientation: "landscape",
+      orientation: "portrait" as const,
       showBloodType: true,
       showTrackStrand: true,
       showEmergencyContact: true,
       signatoryName: "",
-      signatoryTitle: "School Registrar",
+      signatoryTitle: "School Principal",
     });
   const created = await executor
     .select()
@@ -58,7 +58,7 @@ export async function getTemplateConfigForUpdate(executor: Executor): Promise<Te
 export function templateSnapshot(row: TemplateRow) {
   return {
     schoolYear: row.schoolYear,
-    orientation: row.orientation,
+    orientation: "portrait" as const,
     showBloodType: row.showBloodType,
     showTrackStrand: row.showTrackStrand,
     showEmergencyContact: row.showEmergencyContact,
@@ -87,13 +87,13 @@ export function normalizeTemplateSnapshot(snapshot: unknown): AdminTemplateConfi
 
   return {
     schoolYear,
-    orientation: record.orientation === "portrait" ? "portrait" : "landscape",
+    orientation: "portrait",
     showBloodType: record.showBloodType !== false,
     showTrackStrand: record.showTrackStrand !== false,
     showEmergencyContact: record.showEmergencyContact !== false,
     signatoryName: typeof record.signatoryName === "string" ? record.signatoryName : "",
     signatoryTitle:
-      typeof record.signatoryTitle === "string" ? record.signatoryTitle : "School Registrar",
+      typeof record.signatoryTitle === "string" ? record.signatoryTitle : "School Principal",
     designSettings: normalizeCardDesign(record.designSettings),
   };
 }

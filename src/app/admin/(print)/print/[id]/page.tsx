@@ -13,6 +13,8 @@ import { IdCard, type IdCardData } from "@/components/id-card";
 import { formatDateTime } from "@/lib/format";
 import { normalizeTemplateSnapshot } from "@/lib/template";
 import PrintButton from "./print-button";
+import PrintedConfirmation from "./printed-confirmation";
+import { getAdminContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,8 @@ function cardData(a: typeof studentApplications.$inferSelect): IdCardData {
     bloodType: a.bloodType,
     emergencyContactName: a.emergencyContactName,
     emergencyContactPhone: a.emergencyContactPhone,
+    address: a.address,
+    studentSignatureDataUrl: a.studentSignatureDataUrl,
   };
 }
 
@@ -43,16 +47,14 @@ function chunks<T>(items: T[], pageSize: number): T[][] {
 
 export default async function PrintBatchOutputPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ notice?: string | string[] }>;
 }) {
   const { id: rawId } = await params;
-  const query = await searchParams;
-  const notice = Array.isArray(query.notice) ? query.notice[0] : query.notice;
   const id = Number.parseInt(rawId, 10);
   if (!Number.isInteger(id) || id <= 0) notFound();
+  const ctx = await getAdminContext();
+  if (!ctx) notFound();
 
   const batchRows = await db
     .select({ batch: printBatches, creator: adminUsers })
@@ -72,11 +74,11 @@ export default async function PrintBatchOutputPage({
     .orderBy(asc(printBatchItems.id));
 
   const template = normalizeTemplateSnapshot(batch.templateSnapshot);
-  const cardsPerPage = template.orientation === "portrait" ? 9 : 8;
+  const cardsPerPage = 9;
   const pages = chunks(items, cardsPerPage);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="print-output-page min-h-screen" style={{ background: "var(--bg)", color: "var(--ink)" }}>
       {/* Screen-only toolbar */}
       <div
         className="no-print sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b px-4 py-3"
@@ -91,11 +93,20 @@ export default async function PrintBatchOutputPage({
           </p>
           <p className="text-muted text-xs">
             {items.length} card{items.length === 1 ? "" : "s"} · Template v{batch.templateVersion} ·{" "}
-            {creator ? creator.fullName : "—"} · {formatDateTime(batch.printedAt || batch.createdAt)}
+            {creator ? creator.fullName : "—"} ·{" "}
+            {batch.printedAt ? `Printed ${formatDateTime(batch.printedAt)}` : `Created ${formatDateTime(batch.createdAt)}`}
           </p>
         </div>
         <PrintButton />
       </div>
+
+      <PrintedConfirmation
+        batchId={batch.id}
+        batchCode={batch.batchCode}
+        cardCount={items.length}
+        printedAt={batch.printedAt?.toISOString() ?? null}
+        csrfToken={ctx.csrfToken}
+      />
 
       <div className="no-print mx-auto mb-4 mt-4 flex max-w-4xl items-start gap-2 rounded-md border px-4 py-3 text-xs leading-relaxed" style={{ borderColor: "var(--line-strong)", background: "var(--card)", color: "var(--muted)" }}>
         <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -106,12 +117,6 @@ export default async function PrintBatchOutputPage({
           card printing workflows.
         </span>
       </div>
-      {notice === "notification-attention" && (
-        <p className="no-print mx-auto mb-4 max-w-4xl rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="status">
-          The print batch was created, but one or more email notices could not be confirmed as delivered. Check the Notification Log before retrying them.
-        </p>
-      )}
-
       {items.length === 0 ? (
         <p className="no-print px-4 py-10 text-center text-sm">This batch contains no records.</p>
       ) : (

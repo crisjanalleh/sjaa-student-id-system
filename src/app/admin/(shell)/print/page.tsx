@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import { CalendarClock, Printer } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
-import { adminUsers, printBatches, studentApplications } from "@/db/schema";
+import { adminUsers, printBatchItems, printBatches, studentApplications } from "@/db/schema";
 import { getAdminContext } from "@/lib/auth";
 import { formatDateTime, fullName } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
@@ -25,12 +25,18 @@ export default async function PrintSelectPage({
   const rawDateOrder = Array.isArray(params.dateOrder) ? params.dateOrder[0] : params.dateOrder;
   const dateOrder = rawDateOrder === "oldest" ? "oldest" : "newest";
   const requestedPage = Math.max(1, Number.parseInt(rawPage || "1", 10) || 1);
+  const notAlreadyBatched = notExists(
+    db
+      .select({ id: printBatchItems.id })
+      .from(printBatchItems)
+      .where(eq(printBatchItems.applicationId, studentApplications.id)),
+  );
 
   const [[{ totalApproved }], recentBatches] = await Promise.all([
     db
       .select({ totalApproved: sql<number>`count(*)` })
       .from(studentApplications)
-      .where(and(eq(studentApplications.status, "approved"), isNull(studentApplications.deletedAt))),
+      .where(and(eq(studentApplications.status, "approved"), isNull(studentApplications.deletedAt), notAlreadyBatched)),
     db
       .select({ batch: printBatches, admin: adminUsers })
       .from(printBatches)
@@ -48,7 +54,7 @@ export default async function PrintSelectPage({
   const approved = await db
     .select()
     .from(studentApplications)
-    .where(and(eq(studentApplications.status, "approved"), isNull(studentApplications.deletedAt)))
+    .where(and(eq(studentApplications.status, "approved"), isNull(studentApplications.deletedAt), notAlreadyBatched))
     .orderBy(dateOrder === "oldest" ? asc(studentApplications.approvedAt) : desc(studentApplications.approvedAt), desc(studentApplications.id))
     .limit(PAGE_SIZE)
     .offset((page - 1) * PAGE_SIZE);
@@ -123,7 +129,7 @@ export default async function PrintSelectPage({
                   <th>Cards</th>
                   <th>Template</th>
                   <th>Created By</th>
-                  <th>Printed At</th>
+                  <th>Created / Printed</th>
                   <th className="!text-right">Output</th>
                 </tr>
               </thead>
@@ -134,7 +140,11 @@ export default async function PrintSelectPage({
                     <td>{batch.cardCount}</td>
                     <td className="text-xs">v{batch.templateVersion}</td>
                     <td className="text-xs">{admin?.fullName || "—"}</td>
-                    <td className="text-muted text-xs">{formatDateTime(batch.printedAt || batch.createdAt)}</td>
+                    <td className="text-muted text-xs">
+                      {batch.printedAt
+                        ? `Printed ${formatDateTime(batch.printedAt)}`
+                        : `Created ${formatDateTime(batch.createdAt)}`}
+                    </td>
                     <td className="!text-right">
                       <Link href={`/admin/print/${batch.id}`} className="btn btn-outline btn-sm" target="_blank">
                         View / Print

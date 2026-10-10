@@ -3,8 +3,11 @@
 import {
   Camera,
   CheckCircle2,
+  Copy,
   ImageUp,
   Loader2,
+  PenLine,
+  Printer,
   RefreshCw,
   ShieldCheck,
   TriangleAlert,
@@ -310,21 +313,28 @@ export default function ApplyForm({
   csrfToken,
   tokenLabel,
   privacyNotice,
+  schoolName,
 }: {
   csrfToken: string;
   tokenLabel: string;
   privacyNotice: string;
+  schoolName: string;
 }) {
   const [values, setValues] = useState(EMPTY_VALUES);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
   const [successCode, setSuccessCode] = useState("");
+  const [successDate, setSuccessDate] = useState("");
+  const [receiptMessage, setReceiptMessage] = useState("");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [studentSignatureDrawn, setStudentSignatureDrawn] = useState(false);
   const [cropSrc, setCropSrc] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
+  const signatureDrawing = useRef(false);
   const previewUrls = useRef(new Set<string>());
   const submissionInFlight = useRef(false);
 
@@ -410,8 +420,31 @@ export default function ApplyForm({
     setErrors({});
     setServerError("");
     setSuccessCode("");
+    setSuccessDate("");
+    setReceiptMessage("");
     clearPhoto();
     closeCrop();
+    clearStudentSignature();
+  };
+
+  const clearStudentSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    setStudentSignatureDrawn(false);
+    setErrors((current) => {
+      const next = { ...current };
+      delete next.studentSignature;
+      return next;
+    });
+  };
+
+  const printReceipt = () => {
+    const clearPrintMode = () => {
+      delete document.documentElement.dataset.printReceipt;
+    };
+    document.documentElement.dataset.printReceipt = "true";
+    window.addEventListener("afterprint", clearPrintMode, { once: true });
+    window.print();
   };
 
   async function onSubmit(e: FormEvent) {
@@ -424,12 +457,30 @@ export default function ApplyForm({
       document.getElementById("photo_upload")?.focus();
       return;
     }
+    if (!studentSignatureDrawn) {
+      setErrors((current) => ({
+        ...current,
+        studentSignature: "Please draw your signature before submitting.",
+      }));
+      document.getElementById("student_signature")?.focus();
+      return;
+    }
 
     submissionInFlight.current = true;
     const fd = new FormData();
     for (const [k, v] of Object.entries(values)) fd.set(k, v);
     fd.set("consent", values.consent ? "true" : "");
     if (photoBlob) fd.set("photo", photoBlob, "photo.jpg");
+    const signatureCanvas = signatureCanvasRef.current;
+    if (!signatureCanvas) {
+      submissionInFlight.current = false;
+      setErrors((current) => ({
+        ...current,
+        studentSignature: "The signature pad is unavailable. Reload the page and try again.",
+      }));
+      return;
+    }
+    fd.set("studentSignature", signatureCanvas.toDataURL("image/png"));
 
     setSubmitting(true);
     try {
@@ -439,7 +490,7 @@ export default function ApplyForm({
         body: fd,
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok: true; applicationCode: string }
+        | { ok: true; applicationCode: string; submittedAt: string }
         | { ok: false; error: string; errors?: FieldErrors }
         | null;
 
@@ -449,12 +500,21 @@ export default function ApplyForm({
       }
       if (res.status === 201 && data.ok) {
         setSuccessCode(data.applicationCode);
+        setSuccessDate(data.submittedAt);
         return;
       }
       if ("errors" in data && data.errors) {
         setErrors(data.errors);
         const first = Object.keys(data.errors)[0];
-        if (first) document.getElementById(`f_${first}`)?.focus();
+        if (first) {
+          const fieldId =
+            first === "studentSignature"
+              ? "student_signature"
+              : first === "photo"
+                ? "photo_upload"
+                : `f_${first}`;
+          document.getElementById(fieldId)?.focus();
+        }
       }
       setServerError("error" in data ? data.error : "Submission failed. Please review the form.");
     } catch {
@@ -676,7 +736,7 @@ export default function ApplyForm({
           })}
           <div>
             <label className="lbl" htmlFor="f_bloodType">
-              Student               Student Blood Type <span className="normal-case">(optional)</span>
+              Student Blood Type <span className="normal-case">(optional)</span>
             </label>
             <p className="text-muted mb-1 text-xs">Enter the applicant student&rsquo;s blood type, not the emergency contact&rsquo;s.</p>
             <select
@@ -705,7 +765,7 @@ export default function ApplyForm({
       {/* --- Photo --- */}
       <section className="card mb-5 p-5">
         <h2 className="mb-1 border-b pb-2 text-sm font-bold uppercase tracking-wide" style={{ borderColor: "var(--line)" }}>
-          3 · ID Photo <span style={{ color: "var(--danger)" }}>* Required</span>
+          3 · ID Photo &amp; Signature <span style={{ color: "var(--danger)" }}>* Required</span>
         </h2>
         <p className="text-muted mb-4 mt-3 text-xs leading-relaxed">
           Provide a recent photo against a plain background. A photo is required for your ID. JPG or PNG, maximum{" "}
@@ -763,6 +823,79 @@ export default function ApplyForm({
               </p>
             )}
           </div>
+        </div>
+        <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--line)" }}>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <label className="lbl mb-0 flex items-center gap-1.5" htmlFor="student_signature">
+                <PenLine className="h-4 w-4" aria-hidden />
+                Student Handwritten Signature <span style={{ color: "var(--danger)" }}>*</span>
+              </label>
+              <p className="text-muted mt-1 text-xs">
+                Draw your signature below. It will be printed on the front of your ID.
+              </p>
+            </div>
+            <button type="button" className="btn btn-outline btn-sm" onClick={clearStudentSignature}>
+              <X className="h-4 w-4" aria-hidden /> Clear signature
+            </button>
+          </div>
+          <canvas
+            id="student_signature"
+            ref={signatureCanvasRef}
+            width={900}
+            height={280}
+            className="student-signature-pad block w-full touch-none rounded-md border"
+            style={{ borderColor: errors.studentSignature ? "var(--danger)" : "var(--line-strong)", background: "#fff" }}
+            aria-label="Draw your handwritten signature"
+            aria-invalid={Boolean(errors.studentSignature)}
+            onPointerDown={(event) => {
+              const canvas = event.currentTarget;
+              const rect = canvas.getBoundingClientRect();
+              const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+              const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+              const context = canvas.getContext("2d");
+              if (!context) return;
+              canvas.setPointerCapture(event.pointerId);
+              signatureDrawing.current = true;
+              context.beginPath();
+              context.moveTo(x, y);
+              context.lineWidth = 8;
+              context.lineCap = "round";
+              context.lineJoin = "round";
+              context.strokeStyle = "#102f56";
+              context.lineTo(x + 0.1, y + 0.1);
+              context.stroke();
+            }}
+            onPointerMove={(event) => {
+              if (!signatureDrawing.current) return;
+              const canvas = event.currentTarget;
+              const rect = canvas.getBoundingClientRect();
+              const context = canvas.getContext("2d");
+              if (!context) return;
+              context.lineTo(
+                ((event.clientX - rect.left) / rect.width) * canvas.width,
+                ((event.clientY - rect.top) / rect.height) * canvas.height,
+              );
+              context.stroke();
+            }}
+            onPointerUp={() => {
+              signatureDrawing.current = false;
+              setStudentSignatureDrawn(true);
+              setErrors((current) => {
+                const next = { ...current };
+                delete next.studentSignature;
+                return next;
+              });
+            }}
+            onPointerCancel={() => { signatureDrawing.current = false; }}
+          />
+          <p className="text-muted mt-1 text-xs">Use a mouse, stylus, or finger. Your signature is stored with your private application record.</p>
+          {errors.studentSignature && <p className="field-error" role="alert">{errors.studentSignature}</p>}
+          {studentSignatureDrawn && !errors.studentSignature && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--success)" }}>
+              <CheckCircle2 className="h-4 w-4" aria-hidden /> Signature ready.
+            </p>
+          )}
         </div>
       </section>
 
@@ -841,20 +974,49 @@ export default function ApplyForm({
             <h3 className="text-lg font-extrabold">Application Submitted</h3>
             <p className="text-muted mt-1 text-sm">
               Save your Application Control Number. The Administration Office will
-              review your application and contact you using the email address you
-              provided, if any.
+              review your application and contact you using the email address you provided.
             </p>
-            <div
-              className="my-5 select-all rounded-md border-2 px-4 py-3 font-mono text-xl font-bold tracking-widest"
-              style={{ borderColor: "var(--accent-gold)", background: "color-mix(in srgb, var(--accent-gold) 10%, var(--card))" }}
-            >
-              {successCode}
+            <div className="application-receipt-print rounded-xl border p-5 text-left" style={{ borderColor: "var(--line)" }}>
+              <div className="text-center">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--academic-blue)" }}>{schoolName}</p>
+                <p className="text-muted mt-1 text-[11px]">Student ID Application Receipt</p>
+                <p className="lbl mt-5">Application Control Number</p>
+                <p
+                  className="my-2 select-all rounded-md border-2 px-4 py-3 text-center font-mono text-xl font-bold tracking-widest"
+                  style={{ borderColor: "var(--accent-gold)", background: "color-mix(in srgb, var(--accent-gold) 10%, var(--card))" }}
+                >
+                  {successCode}
+                </p>
+                <p className="text-muted text-xs">
+                  Submitted {successDate}
+                </p>
+              </div>
+              <p className="text-muted mt-4 text-xs leading-relaxed">
+                Keep this receipt and present the control number to the school office when claiming your physical ID. The control number is a reference only; staff will verify your identity before releasing an ID.
+              </p>
             </div>
             <p className="text-muted text-xs leading-relaxed">
-              What happens next: the Administration Office reviews your photo and
-              information, prints your ID, and notifies you when it is ready for claiming.
+              The Administration Office will review your photo and information, then email you when your ID is ready for collection.
             </p>
-            <div className="mt-5 flex justify-center gap-2">
+            {receiptMessage && <p className="mt-3 text-xs" role="status">{receiptMessage}</p>}
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(successCode);
+                    setReceiptMessage("Control number copied.");
+                  } catch {
+                    setReceiptMessage("Copy was unavailable. Please select and copy the control number above.");
+                  }
+                }}
+              >
+                <Copy className="h-4 w-4" aria-hidden /> Copy number
+              </button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={printReceipt}>
+                <Printer className="h-4 w-4" aria-hidden /> Print receipt
+              </button>
               <button type="button" className="btn btn-primary" onClick={resetAll}>
                 <RefreshCw className="h-4 w-4" aria-hidden /> Submit another application
               </button>

@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { stdin, stdout } from "node:process";
 import * as readline from "node:readline/promises";
-import { sql } from "drizzle-orm";
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const USERNAME_RE = /^[A-Za-z0-9._-]{3,64}$/;
@@ -25,19 +24,10 @@ async function hiddenQuestion(rl: readline.Interface, query: string): Promise<st
 
 async function main() {
   const { db, pool } = await import("../src/db/index");
-  const { adminUsers } = await import("../src/db/schema");
+  const { createInitialAdmin } = await import("../src/lib/admin-bootstrap");
   const { hashPassword } = await import("../src/lib/crypto");
-  const { audit } = await import("../src/lib/audit");
 
   try {
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(adminUsers);
-    if (Number(count) > 0) {
-      console.error("An administrator account already exists. Bootstrap is disabled.");
-      process.exit(1);
-    }
-
     const envUser = process.env.SJAA_ADMIN_USERNAME?.trim();
     const envName = process.env.SJAA_ADMIN_NAME?.trim();
     const envEmail = process.env.SJAA_ADMIN_EMAIL?.trim().toLowerCase();
@@ -84,19 +74,17 @@ async function main() {
       process.exit(1);
     }
 
-    await db.transaction(async (tx) => {
-      const rows = await tx
-        .insert(adminUsers)
-        .values({ username, fullName, email, passwordHash: hashPassword(password) })
-        .$returningId();
-      await audit({
-        adminId: rows[0].id,
-        action: "admin.setup_completed",
-        entityType: "admin",
-        entityId: rows[0].id,
-        metadata: { method: scripted ? "cli-scripted" : "cli" },
-      }, tx);
+    const adminId = await createInitialAdmin({
+      username,
+      fullName,
+      email,
+      passwordHash: hashPassword(password),
+      method: scripted ? "cli-scripted" : "cli",
     });
+    if (!adminId) {
+      console.error("An administrator account already exists. Bootstrap is disabled.");
+      process.exit(1);
+    }
 
     stdout.write(`\nAdministrator "${username}" created successfully.\n`);
     stdout.write("Sign in at /admin/login. The /setup page is now permanently disabled.\n");

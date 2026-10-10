@@ -12,6 +12,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SCHOOL } from "@/lib/config";
 import ThemeToggle from "@/components/theme-toggle";
+import SjaaLogo from "@/components/sjaa-logo";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", exact: true },
@@ -108,7 +109,7 @@ export default function AdminShell({
       <div className="admin-masthead no-print">
         <header className="admin-header relative mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
           <div className="flex min-w-0 flex-1 basis-[280px] items-center gap-3">
-            <div className="admin-brand-mark" aria-hidden>SJ</div>
+            <SjaaLogo className="admin-brand-mark object-contain" priority />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold leading-tight">{SCHOOL.name}</p>
               <p className="text-muted truncate text-[11px]">Student ID Issuance · Administration</p>
@@ -164,7 +165,7 @@ export default function AdminShell({
                 <LogOut className="h-4 w-4" aria-hidden />
                 {loggingOut ? "Signing out…" : "Sign out"}
               </button>
-              {logoutError && <p className="mt-2 text-xs text-red-700" role="alert">{logoutError}</p>}
+              {logoutError && <p className="mt-2 text-xs" style={{ color: "var(--danger)" }} role="alert">{logoutError}</p>}
             </div>
             <button
               type="button"

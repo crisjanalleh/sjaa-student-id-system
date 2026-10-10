@@ -47,7 +47,7 @@ export default function RetryButton({
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <RotateCcw className="h-3.5 w-3.5" aria-hidden />}
         {busy ? "Retrying…" : "Retry"}
       </button>
-      {error && <span className="max-w-56 text-right text-xs text-red-700" role="alert">{error}</span>}
+      {error && <span className="max-w-56 text-right text-xs" style={{ color: "var(--danger)" }} role="alert">{error}</span>}
     </div>
   );
 }

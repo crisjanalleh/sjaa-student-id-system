@@ -22,6 +22,7 @@ export const AUDIT_ACTIONS = [
   "application.claimed",
   "template.updated",
   "batch.created",
+  "batch.printed",
   "notification.queued",
   "notification.retried",
   "notification.acknowledged",

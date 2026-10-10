@@ -12,7 +12,12 @@ import {
 import { config } from "@/lib/config";
 import { hashIp, sha256Hex, verifyPassword } from "@/lib/crypto";
 import { rateLimitHit, resetRateLimit } from "@/lib/rate-limit";
-import { clientIp, userAgent } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+  userAgent,
+} from "@/lib/request";
 import { cleanText } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -34,10 +39,13 @@ export async function POST(req: Request) {
     return json(429, { ok: false, error: "Too many sign-in attempts. Please try again later." });
   }
 
-  let body: { username?: unknown; password?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 16 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Sign-in request is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 

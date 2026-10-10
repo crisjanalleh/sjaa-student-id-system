@@ -3,7 +3,11 @@ import { db } from "@/db";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { config } from "@/lib/config";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { createAccessToken } from "@/lib/tokens";
 import { cleanText } from "@/lib/validate";
 
@@ -24,10 +28,13 @@ export async function POST(req: Request) {
   if (error) return error;
   if (!csrfOk(req, ctx.csrfToken)) return json(403, { ok: false, error: "Security validation failed." });
 
-  let body: { label?: unknown; expiresAt?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 16 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Token request is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 

@@ -2,7 +2,6 @@ import { and, asc, inArray, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import {
-  notificationLogs,
   printBatchItems,
   printBatches,
   studentApplications,
@@ -10,8 +9,11 @@ import {
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { newBatchCode } from "@/lib/crypto";
-import { deliverNotification } from "@/lib/mailer";
-import { clientIp } from "@/lib/request";
+import {
+  clientIp,
+  readJsonObjectBounded,
+  RequestBodyTooLargeError,
+} from "@/lib/request";
 import { getTemplateConfig, templateSnapshot } from "@/lib/template";
 
 export const runtime = "nodejs";
@@ -28,9 +30,8 @@ function json(status: number, body: Record<string, unknown>) {
  *     the same approved record concurrently;
  *  3. re-verify every record is STILL approved inside the lock;
  *  4. capture the template version + configuration snapshot;
- *  5. create the batch + items + flip statuses to `printed` atomically;
- *  6. queue ready-for-claiming notifications as pending;
- *  7. commit, THEN attempt email delivery (failures stay observable).
+ *  5. create the batch + items atomically;
+ *  6. leave applications approved until an administrator confirms printing.
  *
  * Reprint safety: print_batch_items.application_id is UNIQUE, and the status
  * re-check rejects anything that is no longer `approved` — a page refresh can
@@ -41,10 +42,13 @@ export async function POST(req: Request) {
   if (error) return error;
   if (!csrfOk(req, ctx.csrfToken)) return json(403, { ok: false, error: "Security validation failed." });
 
-  let body: { ids?: unknown };
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
-  } catch {
+    body = await readJsonObjectBounded(req, 32 * 1024);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return json(413, { ok: false, error: "Batch request is too large." });
+    }
     return json(400, { ok: false, error: "Malformed request." });
   }
 
@@ -91,8 +95,6 @@ export async function POST(req: Request) {
     }
 
     const template = await getTemplateConfig(tx);
-    const now = new Date();
-
     const batchCode = newBatchCode();
     const batchRows = await tx
       .insert(printBatches)
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
         templateVersion: template.version,
         templateSnapshot: templateSnapshot(template),
         cardCount: rows.length,
-        printedAt: now,
+        printedAt: null,
       })
       .$returningId();
     const batch = batchRows[0];
@@ -114,23 +116,6 @@ export async function POST(req: Request) {
         templateVersion: template.version,
       })),
     );
-
-    await tx
-      .update(studentApplications)
-      .set({ status: "printed", printedAt: now, updatedAt: now })
-      .where(inArray(studentApplications.id, ids));
-
-    const notifRows = await tx
-      .insert(notificationLogs)
-      .values(
-        rows.map((r) => ({
-          applicationId: r.id,
-          recipientEmail: r.email || "",
-          notificationType: "ready_for_claiming" as const,
-          sentStatus: "pending" as const,
-        })),
-      )
-      .$returningId();
 
     await audit(
       {
@@ -148,36 +133,15 @@ export async function POST(req: Request) {
       tx,
     );
 
-    return { batchId: batch.id, notificationIds: notifRows.map((n) => n.id) };
+    return { batchId: batch.id };
   });
 
   if ("error" in txResult) {
     return json(409, { ok: false, error: txResult.error });
   }
 
-  // Deliver outside the business transaction with bounded concurrency so a
-  // large batch cannot hold database locks or saturate the SMTP provider.
-  const deliveryResults: PromiseSettledResult<{ ok: boolean }>[] = [];
-  let nextNotification = 0;
-  const workerCount = Math.min(5, txResult.notificationIds.length);
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (nextNotification < txResult.notificationIds.length) {
-        const notificationId = txResult.notificationIds[nextNotification++];
-        deliveryResults.push(await Promise.resolve().then(() => deliverNotification(notificationId)).then(
-          (result) => ({ status: "fulfilled", value: result }) as const,
-          (reason: unknown) => ({ status: "rejected", reason }) as const,
-        ));
-      }
-    }),
-  );
-  const notificationAttention = deliveryResults.some(
-    (result) => result.status === "rejected" || !result.value.ok,
-  );
-
   return json(201, {
     ok: true,
     batchId: txResult.batchId,
-    notificationAttention,
   });
 }

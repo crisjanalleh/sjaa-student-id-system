@@ -81,6 +81,8 @@ export function validateApplicationFields(input: Record<string, unknown>): {
     errors.trackStrand = "Track / Strand is required for Senior High School.";
   else if (isShs && trackStrand && !(TRACK_STRANDS as readonly string[]).includes(trackStrand))
     errors.trackStrand = "Select a valid track / strand.";
+  else if (!isShs && trackRaw)
+    errors.trackStrand = "Track / Strand applies only to Grades 11–12. Clear this field and try again.";
 
   const emailRaw = cleanText(input.email).toLowerCase().slice(0, 255);
   const email = emailRaw || null;
