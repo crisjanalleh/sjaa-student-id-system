@@ -20,6 +20,7 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 .vercel/
+.public-url
 .idea/
 .vscode/*
 !.vscode/extensions.json

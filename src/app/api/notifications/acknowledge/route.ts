@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { notificationLogs } from "@/db/schema";
 import { audit } from "@/lib/audit";
-import { config } from "@/lib/config";
 import { hashIp, sha256Hex } from "@/lib/crypto";
 import { rateLimitHit } from "@/lib/rate-limit";
 import {
@@ -18,10 +17,10 @@ function redirect(result: "success" | "unavailable", token?: string) {
   const destination = result === "success" && token
     ? `/acknowledge?token=${encodeURIComponent(token)}`
     : `/acknowledge?result=${result}`;
-  return NextResponse.redirect(
-    new URL(destination, config.appUrl),
-    { status: 303, headers: { "cache-control": "no-store", "referrer-policy": "no-referrer" } },
-  );
+  return new NextResponse(null, {
+    status: 303,
+    headers: { Location: destination, "cache-control": "no-store", "referrer-policy": "no-referrer" },
+  });
 }
 
 export async function POST(request: Request) {

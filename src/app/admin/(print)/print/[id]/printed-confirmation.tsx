@@ -2,7 +2,7 @@
 
 import { CheckCircle2, IdCard, Loader2, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 export default function PrintedConfirmation({
   batchId,
@@ -10,28 +10,22 @@ export default function PrintedConfirmation({
   cardCount,
   printedAt,
   csrfToken,
+  ready,
 }: {
   batchId: number;
   batchCode: string;
   cardCount: number;
   printedAt: string | null;
   csrfToken: string;
+  ready: boolean;
 }) {
   const router = useRouter();
-  const [printDialogClosed, setPrintDialogClosed] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [allPrinted, setAllPrinted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notificationWarning, setNotificationWarning] = useState(false);
   const requestInFlight = useRef(false);
-
-  useEffect(() => {
-    if (printedAt) return;
-    const onAfterPrint = () => setPrintDialogClosed(true);
-    window.addEventListener("afterprint", onAfterPrint);
-    return () => window.removeEventListener("afterprint", onAfterPrint);
-  }, [printedAt]);
 
   async function confirmPrinted() {
     if (!allPrinted || busy || requestInFlight.current) return;
@@ -86,7 +80,7 @@ export default function PrintedConfirmation({
   return (
     <>
       <section className="no-print mx-auto mb-4 max-w-4xl rounded-lg border px-4 py-3 text-sm" style={{ borderColor: "var(--line)", background: "var(--card)" }}>
-        {printDialogClosed ? (
+        {ready ? (
           <>
             <p className="font-semibold">Confirm the physical cards are printed</p>
             <p className="text-muted mt-1 text-xs">
@@ -100,7 +94,7 @@ export default function PrintedConfirmation({
           </>
         ) : (
           <p className="text-muted text-xs">
-            Print this batch first. When the print dialog closes, you can confirm whether all cards printed successfully.
+            Print every set above first. Once all cards are marked printed, you can confirm the whole batch here.
           </p>
         )}
       </section>

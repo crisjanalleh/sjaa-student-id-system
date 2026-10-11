@@ -9,6 +9,7 @@ import {
   mediumtext,
   mysqlEnum,
   mysqlTable,
+  primaryKey,
   text,
   uniqueIndex,
   varchar,
@@ -143,6 +144,7 @@ export const studentApplications = mysqlTable(
     uniqueIndex("student_applications_email_uq").on(t.activeEmail),
     index("student_applications_status_idx").on(t.status),
     index("student_applications_created_idx").on(t.createdAt),
+    index("student_applications_status_created_idx").on(t.status, t.createdAt),
     index("student_applications_name_idx").on(t.lastName, t.firstName),
     foreignKey({
       name: "student_apps_access_token_fk",
@@ -228,6 +230,18 @@ export const printBatchItems = mysqlTable(
       foreignColumns: [studentApplications.id],
     }),
   ],
+);
+
+// Per-card print progress. Created at runtime (see lib/print-progress.ts).
+export const printItemProgress = mysqlTable(
+  "print_item_progress",
+  {
+    batchItemId: int("batch_item_id").primaryKey(),
+    batchId: int("batch_id").notNull(),
+    state: varchar("state", { length: 12 }).notNull(),
+    updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).notNull(),
+  },
+  (t) => [index("print_item_progress_batch_state_idx").on(t.batchId, t.state)],
 );
 
 export const notificationLogs = mysqlTable(
@@ -329,12 +343,22 @@ export const adminProfiles = mysqlTable(
   ],
 );
 
-export const schoolSettings = mysqlTable("school_settings", {
-  id: int("id").primaryKey(),
-  address: varchar("address", { length: 300 }).notNull(),
-  updatedByAdminId: int("updated_by_admin_id"),
-  updatedAt: datetime("updated_at", { mode: "date", fsp: 3 }).default(sql`(now())`).notNull(),
-});
+export const adminSectionSeen = mysqlTable(
+  "admin_section_seen",
+  {
+    adminUserId: int("admin_user_id").notNull(),
+    section: varchar("section", { length: 32 }).notNull(),
+    seenAt: datetime("seen_at", { mode: "date", fsp: 3 }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.adminUserId, t.section] }),
+    foreignKey({
+      name: "admin_section_seen_user_fk",
+      columns: [t.adminUserId],
+      foreignColumns: [adminUsers.id],
+    }).onDelete("cascade"),
+  ],
+);
 
 export const formSessions = mysqlTable(
   "form_sessions",

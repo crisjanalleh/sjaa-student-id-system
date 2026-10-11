@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       error: `Submission limit reached. You can submit up to ${config.submissionsPerHour} applications per hour from this connection. Please try again later.`,
     });
   }
-  const tokenLimit = await rateLimitHit(`sub:tok:${ctx.accessTokenId}`, 60, 3600);
+  const tokenLimit = await rateLimitHit(`sub:tok:${ctx.accessTokenId}`, config.tokenSubmissionsPerHour, 3600);
   if (!tokenLimit.allowed) {
     return json(429, {
       ok: false,

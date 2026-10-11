@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
-import { config } from "@/lib/config";
+import { getPublicBaseUrl } from "@/lib/public-url";
 import {
   clientIp,
   readJsonObjectBounded,
@@ -43,18 +43,15 @@ export async function POST(req: Request) {
     return json(422, { ok: false, error: "A campaign label is required (e.g. SY 2026-2027)." });
   }
 
-  let expiresAt: Date;
-  if (body.expiresAt) {
-    const parsed = new Date(String(body.expiresAt));
-    if (Number.isNaN(parsed.getTime())) {
-      return json(422, { ok: false, error: "Invalid expiration date." });
-    }
-    if (parsed.getTime() < Date.now() + 5 * 60 * 1000) {
-      return json(422, { ok: false, error: "Expiration must be at least 5 minutes in the future." });
-    }
-    expiresAt = parsed;
-  } else {
-    expiresAt = new Date(Date.now() + config.publicTokenDefaultTtlDays * 24 * 60 * 60 * 1000);
+  if (!body.expiresAt) {
+    return json(422, { ok: false, error: "An expiration date and time is required." });
+  }
+  const expiresAt = new Date(String(body.expiresAt));
+  if (Number.isNaN(expiresAt.getTime())) {
+    return json(422, { ok: false, error: "Invalid expiration date." });
+  }
+  if (expiresAt.getTime() < Date.now() + 5 * 60 * 1000) {
+    return json(422, { ok: false, error: "Expiration must be at least 5 minutes in the future." });
   }
 
   const { raw, id } = await db.transaction(async (tx) => {
@@ -78,6 +75,8 @@ export async function POST(req: Request) {
     ok: true,
     id,
     rawToken: raw,
-    url: `${config.appUrl}/?access_token=${raw}`,
+    label,
+    expiresAt: expiresAt.toISOString(),
+    url: `${getPublicBaseUrl()}/?access_token=${raw}`,
   });
 }

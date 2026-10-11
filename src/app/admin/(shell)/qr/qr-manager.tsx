@@ -1,10 +1,13 @@
-"use client";
+﻿"use client";
 
 import {
+  ChevronDown,
   Copy,
   Download,
+  FileCode2,
+  Image as ImageIcon,
   Loader2,
-  Plus,
+  Maximize2,
   QrCode,
   RefreshCcw,
   ShieldAlert,
@@ -15,6 +18,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import { ListCard, ListLink, Pager } from "@/components/list-card";
+import { renderQrPoster } from "@/lib/qr-poster";
 import SelectField from "@/components/select-field";
 
 type TokenRow = {
@@ -49,6 +53,7 @@ export default function QrManager({
   page,
   totalPages,
   total,
+  school,
 }: {
   tokens: TokenRow[];
   csrfToken: string;
@@ -56,16 +61,20 @@ export default function QrManager({
   page: number;
   totalPages: number;
   total: number;
+  school: { name: string; address: string; motto: string };
 }) {
   const router = useRouter();
   const [label, setLabel] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [issued, setIssued] = useState<{ id: number; url: string; recovered?: boolean } | null>(null);
+  const [issued, setIssued] = useState<{ id: number; url: string; label: string; expiresAt: string | null; recovered?: boolean } | null>(null);
   const [pngDataUrl, setPngDataUrl] = useState("");
+  const [posterDataUrl, setPosterDataUrl] = useState("");
   const [svgMarkup, setSvgMarkup] = useState("");
   const [copied, setCopied] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
   const requestInFlight = useRef(false);
 
   // Render QR assets client-side from the authenticated access-link response.
@@ -84,37 +93,52 @@ export default function QrManager({
         margin: 2,
         errorCorrectionLevel: "M",
       });
+      const poster = await renderQrPoster({
+        url: issued.url,
+        label: issued.label,
+        expiresAt: issued.expiresAt,
+        schoolName: school.name,
+        address: school.address,
+        motto: school.motto,
+      }).catch(() => "");
       if (!cancelled) {
         setPngDataUrl(png);
         setSvgMarkup(svg);
+        setPosterDataUrl(poster);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [issued]);
+  }, [issued, school]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
     if (busy || requestInFlight.current) return;
+    if (!expiresAt) {
+      setError("Choose when this QR code should expire.");
+      return;
+    }
     requestInFlight.current = true;
     setBusy("create");
     setError("");
     setIssued(null);
+    setPngDataUrl("");
+    setPosterDataUrl("");
     try {
       const res = await fetch("/api/admin/tokens", {
         method: "POST",
         headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
         body: JSON.stringify({
           label,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
+          expiresAt: new Date(expiresAt).toISOString(),
         }),
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; id?: number; url?: string; error?: string }
+        | { ok?: boolean; id?: number; url?: string; label?: string; expiresAt?: string; error?: string }
         | null;
       if (res.status === 201 && data?.ok && data.url && data.id) {
-        setIssued({ id: data.id, url: data.url });
+        setIssued({ id: data.id, url: data.url, label: data.label ?? label, expiresAt: data.expiresAt ?? null });
         setLabel("");
         setExpiresAt("");
         router.refresh();
@@ -161,16 +185,18 @@ export default function QrManager({
     setBusy(`regen-${id}`);
     setError("");
     setIssued(null);
+    setPngDataUrl("");
+    setPosterDataUrl("");
     try {
       const res = await fetch(`/api/admin/tokens/${id}/regenerate`, {
         method: "POST",
         headers: { "x-csrf-token": csrfToken },
       });
       const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; id?: number; url?: string; error?: string }
+        | { ok?: boolean; id?: number; url?: string; label?: string; expiresAt?: string; error?: string }
         | null;
       if (res.status === 201 && data?.ok && data.url && data.id) {
-        setIssued({ id: data.id, url: data.url });
+        setIssued({ id: data.id, url: data.url, label: data.label ?? "", expiresAt: data.expiresAt ?? null });
         router.refresh();
         return;
       }
@@ -189,11 +215,13 @@ export default function QrManager({
     setBusy(`view-${id}`);
     setError("");
     setIssued(null);
+    setPngDataUrl("");
+    setPosterDataUrl("");
     try {
       const response = await fetch(`/api/admin/tokens/${id}/reveal`, { cache: "no-store" });
-      const data = (await response.json().catch(() => null)) as { ok?: boolean; url?: string; error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { ok?: boolean; url?: string; label?: string; expiresAt?: string | null; error?: string } | null;
       if (response.ok && data?.ok && data.url) {
-        setIssued({ id, url: data.url, recovered: true });
+        setIssued({ id, url: data.url, label: data.label ?? "", expiresAt: data.expiresAt ?? null, recovered: true });
       } else {
         setError(data?.error || "The access link could not be recovered.");
       }
@@ -261,19 +289,21 @@ export default function QrManager({
             </div>
             <div className="mb-4">
               <label className="lbl" htmlFor="qr_exp">
-                Expiration <span className="normal-case">(optional — defaults per server config)</span>
+                Expiration <span className="normal-case">(required)</span>
               </label>
               <input
                 id="qr_exp"
                 type="datetime-local"
                 className="inp"
+                required
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
               />
+              <p className="text-muted mt-1 text-[11px]">Students can no longer use the QR code after this date and time.</p>
             </div>
             <button type="submit" className="btn btn-gold w-full" disabled={busy === "create"}>
-              {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-              Generate Token &amp; QR
+              {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <QrCode className="h-4 w-4" aria-hidden />}
+              Generate Application QR
             </button>
           </form>
         </section>
@@ -289,12 +319,24 @@ export default function QrManager({
               The access link is encrypted in the database and can be reopened while active.
               Share it only through approved school channels (campus posters or official group chats).
             </p>
-            <div className="mb-4 flex justify-center rounded-md border bg-white p-4" style={{ borderColor: "var(--line)" }}>
+            <div className="mb-4 rounded-md border bg-white p-3" style={{ borderColor: "var(--line)" }}>
               {pngDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={pngDataUrl} alt="Application form QR code" className="h-44 w-44" />
+                <button
+                  type="button"
+                  className="group relative block w-full cursor-zoom-in"
+                  onClick={() => setZoomed(true)}
+                  aria-label="Enlarge QR code"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pngDataUrl} alt="Application form QR code" className="aspect-square w-full" />
+                  <span className="pointer-events-none absolute bottom-1 right-1 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                    <Maximize2 className="h-3 w-3" aria-hidden /> Enlarge
+                  </span>
+                </button>
               ) : (
-                <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--muted)" }} aria-hidden />
+                <div className="flex aspect-square w-full items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--muted)" }} aria-hidden />
+                </div>
               )}
             </div>
             <div className="mb-3 flex items-center gap-2">
@@ -308,24 +350,78 @@ export default function QrManager({
                 <Copy className="h-3.5 w-3.5" aria-hidden /> {copied ? "Copied" : "Copy"}
               </button>
             </div>
-            <div className="flex gap-2">
-              {pngDataUrl && (
-                <a href={pngDataUrl} download={`sjaa-application-qr-${issued.id}.png`} className="btn btn-primary btn-sm flex-1">
-                  <Download className="h-4 w-4" aria-hidden /> PNG (1024px)
-                </a>
-              )}
-              {svgMarkup && (
-                <button type="button" className="btn btn-outline btn-sm flex-1" onClick={downloadSvg}>
-                  <Download className="h-4 w-4" aria-hidden /> SVG
-                </button>
-              )}
+            {/^https?:\/\/(localhost|127\.)/.test(issued.url) && (
+              <p className="mb-3 rounded-md border px-3 py-2 text-[11px] leading-relaxed" style={{ borderColor: "var(--accent-gold)", background: "var(--bg)" }}>
+                <strong>This link only works on this computer.</strong> To let phones on any network open it, run{" "}
+                <code>npm run share</code> in a terminal, then generate or reopen the QR code.
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn btn-primary btn-sm w-full"
+              onClick={() => setDownloadOpen((open) => !open)}
+              aria-expanded={downloadOpen}
+              disabled={!pngDataUrl}
+            >
+              <Download className="h-4 w-4" aria-hidden /> Download
+              <ChevronDown className={`h-4 w-4 transition-transform ${downloadOpen ? "rotate-180" : ""}`} aria-hidden />
+            </button>
+            <div className="dl-collapse" data-open={downloadOpen} inert={!downloadOpen}>
+              <div className="dl-collapse-inner">
+              <div className="mt-2 flex flex-col gap-1.5 rounded-md border p-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+                {posterDataUrl && (
+                  <a href={posterDataUrl} download={`sjaa-application-poster-${issued.id}.png`} className="dl-option">
+                    <ImageIcon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      Poster (PNG)
+                      <span className="text-muted block text-[10.5px] font-normal">A4, with steps and expiry date</span>
+                    </span>
+                  </a>
+                )}
+                {pngDataUrl && (
+                  <a href={pngDataUrl} download={`sjaa-application-qr-${issued.id}.png`} className="dl-option">
+                    <QrCode className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      QR code only (PNG)
+                      <span className="text-muted block text-[10.5px] font-normal">Plain image for slides or chats</span>
+                    </span>
+                  </a>
+                )}
+                {svgMarkup && (
+                  <button type="button" className="dl-option" onClick={downloadSvg}>
+                    <FileCode2 className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>
+                      QR code (SVG)
+                      <span className="text-muted block text-[10.5px] font-normal">Scalable, for professional printing</span>
+                    </span>
+                  </button>
+                )}
+              </div>
+              </div>
             </div>
-            <button type="button" className="btn btn-ghost btn-sm mt-3 w-full" onClick={() => setIssued(null)}>
+            <button type="button" className="btn btn-ghost btn-sm mt-3 w-full" onClick={() => { setIssued(null); setDownloadOpen(false); }}>
               Close this panel
             </button>
           </section>
         )}
       </div>
+      {zoomed && issued && pngDataUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Enlarged QR code"
+          onClick={() => setZoomed(false)}
+        >
+          <div className="max-h-full rounded-lg bg-white p-4" onClick={(e) => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pngDataUrl} alt="Application form QR code" className="aspect-square w-[min(80vw,80vh,560px)]" />
+            <button type="button" className="btn btn-outline btn-sm mt-3 w-full" onClick={() => setZoomed(false)} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Token registry */}
       <ListCard className="card h-fit lg:col-span-9">

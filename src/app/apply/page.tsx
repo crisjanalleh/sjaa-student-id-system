@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { QrCode, ShieldAlert, TimerReset } from "lucide-react";
-import { getFormContext } from "@/lib/auth";
+import { getFormContext, touchFormSession } from "@/lib/auth";
 import { SCHOOL, config } from "@/lib/config";
 import ApplyForm from "./apply-form";
+import OpenInBrowserBanner from "./open-in-browser";
 import SjaaLogo from "@/components/sjaa-logo";
 
 export const dynamic = "force-dynamic";
@@ -52,11 +53,13 @@ export default async function ApplyPage({
 }) {
   const { error } = await searchParams;
   const ctx = await getFormContext();
+  if (ctx) await touchFormSession(ctx).catch(() => false);
 
   return (
     <div className="student-application-page min-h-screen">
       <BrandHeader />
       <main className="mx-auto max-w-3xl px-4 py-8">
+        <OpenInBrowserBanner />
         {ctx ? (
           <ApplyForm
             csrfToken={ctx.csrfToken}

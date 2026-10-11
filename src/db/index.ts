@@ -26,7 +26,8 @@ const pool =
     database: decodeURIComponent(parsedUrl.pathname.slice(1)),
     timezone: "Z",
     waitForConnections: true,
-    connectionLimit: 10,
+    connectionLimit: Number(process.env.DB_POOL_SIZE) > 0 ? Number(process.env.DB_POOL_SIZE) : 30,
+    queueLimit: 0,
   });
 
 if (!globalForDb.__sjaaMariaDbPool) {

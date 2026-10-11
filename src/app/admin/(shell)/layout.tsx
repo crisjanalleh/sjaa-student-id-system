@@ -5,7 +5,7 @@ import AdminShell from "@/components/admin-shell";
 import { db } from "@/db";
 import { adminProfiles } from "@/db/schema";
 import { getAdminContext } from "@/lib/auth";
-import { getSchoolAddress } from "@/lib/school";
+import { getUnreadCounts } from "@/lib/unread";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +21,15 @@ export default async function AdminShellLayout({ children }: { children: ReactNo
     ? profile.avatarDataUrl
     : null;
 
+  const unread = await getUnreadCounts(ctx.admin.id).catch(() => ({ applications: 0, notifications: 0 }));
+
   return (
     <AdminShell
       fullName={ctx.admin.fullName}
       username={ctx.admin.username}
       avatarDataUrl={avatarDataUrl}
       csrfToken={ctx.csrfToken}
-      address={await getSchoolAddress()}
+      initialUnread={unread}
     >
       {children}
     </AdminShell>

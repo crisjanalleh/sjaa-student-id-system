@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAdminContext } from "@/lib/auth";
 import { SCHOOL } from "@/lib/config";
-import { getSchoolAddress } from "@/lib/school";
 import LoginForm from "./login-form";
 import SjaaLogo from "@/components/sjaa-logo";
 import DeviceTheme from "./device-theme";
@@ -13,7 +12,6 @@ export const metadata = { title: "Administrator Sign In" };
 export default async function AdminLoginPage() {
   const ctx = await getAdminContext();
   if (ctx) redirect("/admin");
-  const address = await getSchoolAddress();
 
   return (
     <div
@@ -36,7 +34,7 @@ export default async function AdminLoginPage() {
           </div>
           <div className="relative border-t pt-5 text-center text-xs leading-relaxed text-slate-300" style={{ borderColor: "rgba(255,255,255,.15)" }}>
             <p className="font-semibold text-white">{SCHOOL.motto}</p>
-            <p className="mt-1">{address}</p>
+            <p className="mt-1">{SCHOOL.address}</p>
             <p>Est. {SCHOOL.established}</p>
           </div>
         </section>
@@ -46,7 +44,7 @@ export default async function AdminLoginPage() {
             <div className="mb-7 text-center md:hidden">
               <SjaaLogo className="mx-auto mb-3 h-24 w-24 object-contain" />
               <p className="text-sm font-bold">{SCHOOL.name}</p>
-              <p className="text-muted mt-1 text-xs">{address}</p>
+              <p className="text-muted mt-1 text-xs">{SCHOOL.address}</p>
             </div>
             <div className="mb-6">
               <h2 className="text-xl font-extrabold tracking-tight">Welcome back</h2>

@@ -5,7 +5,6 @@ import { hashIp } from "@/lib/crypto";
 export const AUDIT_ACTIONS = [
   "admin.setup_completed",
   "admin.profile_updated",
-  "admin.school_location_updated",
   "auth.login_success",
   "auth.login_failed",
   "auth.logout",

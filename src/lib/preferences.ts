@@ -131,9 +131,23 @@ export function updatePreferences(patch: Partial<Preferences>): boolean {
   saved = store(KEYS.reduceMotion, next.reduceMotion ? "reduce" : null) && saved;
   saved = store(KEYS.bold, next.bold ? "on" : null) && saved;
   saved = store(KEYS.colorFilter, next.colorFilter === "none" ? null : next.colorFilter) && saved;
+  freezeTransitions();
   applyToDocument(next);
   window.dispatchEvent(new Event(PREFERENCE_EVENT));
   return saved;
+}
+
+let switchTimer = 0;
+function freezeTransitions() {
+  const root = document.documentElement;
+  root.setAttribute("data-switching", "");
+  window.clearTimeout(switchTimer);
+  // Two frames lets the browser repaint every colour once, then transitions resume.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      switchTimer = window.setTimeout(() => root.removeAttribute("data-switching"), 60);
+    }),
+  );
 }
 
 /** Re-applies the saved theme (or none, meaning follow the device) to <html>. */

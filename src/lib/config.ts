@@ -37,7 +37,8 @@ export const config = {
   sessionAbsoluteHours: intEnv("SESSION_ABSOLUTE_TIMEOUT", 12),
   publicTokenDefaultTtlDays: intEnv("PUBLIC_TOKEN_DEFAULT_TTL", 30),
   maxUploadMb: intEnv("MAX_UPLOAD_MB", 5),
-  submissionsPerHour: intEnv("RATE_LIMIT_SUBMISSIONS_PER_HOUR", 10),
+  submissionsPerHour: intEnv("RATE_LIMIT_SUBMISSIONS_PER_HOUR", 100),
+  tokenSubmissionsPerHour: intEnv("RATE_LIMIT_TOKEN_SUBMISSIONS_PER_HOUR", 5000),
   setupSecret: process.env.SETUP_SECRET || "",
   privacyNotice:
     process.env.PRIVACY_NOTICE ||

@@ -16,11 +16,11 @@ import { randomToken, safeEqual, sha256Hex } from "@/lib/crypto";
 export const ADMIN_COOKIE = "sjaa_admin";
 export const FORM_COOKIE = "sjaa_apply";
 
-function cookieBase() {
+function cookieBase(secure: boolean = config.secureCookies) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: config.secureCookies,
+    secure,
     path: "/",
   };
 }
@@ -159,7 +159,21 @@ export type FormContext = {
   accessTokenId: number;
   accessTokenLabel: string;
   csrfToken: string;
+  tokenExpiresAt: Date | null;
+  sessionCreatedAt: Date;
 };
+
+/** A student's form stays open on their phone only while they keep using it. */
+export const FORM_IDLE_MS = 30 * 60 * 1000;
+const FORM_ABSOLUTE_MS = 4 * 60 * 60 * 1000;
+
+function slidingExpiry(startedAt: number, tokenExpiresAt: Date | null): Date {
+  const limit = Math.min(
+    startedAt + FORM_ABSOLUTE_MS,
+    tokenExpiresAt ? tokenExpiresAt.getTime() : Infinity,
+  );
+  return new Date(Math.min(Date.now() + FORM_IDLE_MS, limit));
+}
 
 export async function createFormSession(
   accessTokenId: number,
@@ -169,11 +183,7 @@ export async function createFormSession(
   const raw = randomToken(32);
   const csrf = randomToken(32);
   const now = Date.now();
-  const fourHours = 4 * 60 * 60 * 1000;
-  const expiryMs = tokenExpiresAt
-    ? Math.min(now + fourHours, tokenExpiresAt.getTime())
-    : now + fourHours;
-  const expiresAt = new Date(Math.max(now + 5 * 60 * 1000, expiryMs));
+  const expiresAt = new Date(Math.max(now + 60 * 1000, slidingExpiry(now, tokenExpiresAt).getTime()));
   await db.insert(formSessions).values({
     tokenHash: sha256Hex(raw),
     accessTokenId,
@@ -182,7 +192,17 @@ export async function createFormSession(
     expiresAt,
   });
   cleanupExpiredSessionsOccasionally();
-  return { raw, maxAgeSeconds: Math.floor((expiresAt.getTime() - now) / 1000) };
+  // The cookie outlives the idle window; the database row is what enforces the 30-minute idle limit.
+  const cookieMs = Math.min(FORM_ABSOLUTE_MS, tokenExpiresAt ? Math.max(60_000, tokenExpiresAt.getTime() - now) : Infinity);
+  return { raw, maxAgeSeconds: Math.floor(cookieMs / 1000) };
+}
+
+/** Records student activity, pushing the idle expiry forward. Returns false once the session can no longer be extended. */
+export async function touchFormSession(ctx: FormContext): Promise<boolean> {
+  const expiresAt = slidingExpiry(ctx.sessionCreatedAt.getTime(), ctx.tokenExpiresAt);
+  if (expiresAt.getTime() <= Date.now()) return false;
+  await db.update(formSessions).set({ expiresAt }).where(eq(formSessions.id, ctx.formSessionId));
+  return true;
 }
 
 export async function getFormContext(): Promise<FormContext | null> {
@@ -215,6 +235,8 @@ export async function getFormContext(): Promise<FormContext | null> {
     accessTokenId: row.token.id,
     accessTokenLabel: row.token.label,
     csrfToken: row.fs.csrfToken,
+    tokenExpiresAt: row.token.expiresAt,
+    sessionCreatedAt: row.fs.createdAt,
   };
 }
 

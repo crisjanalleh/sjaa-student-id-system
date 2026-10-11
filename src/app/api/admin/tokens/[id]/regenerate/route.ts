@@ -5,6 +5,7 @@ import { applicationAccessTokens } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { config } from "@/lib/config";
+import { getPublicBaseUrl } from "@/lib/public-url";
 import { clientIp } from "@/lib/request";
 import { createAccessToken } from "@/lib/tokens";
 
@@ -65,7 +66,7 @@ export async function POST(
       metadata: { label: old.label, revokedTokenId: old.id, expiresAt: expiresAt.toISOString() },
       ip: clientIp(req),
     }, tx);
-    return { status: 201 as const, ...token };
+    return { status: 201 as const, ...token, label: old.label, expiresAt };
   });
   if (result.status === 404) return json(404, { ok: false, error: "Token not found." });
   if (result.status === 409) {
@@ -76,6 +77,8 @@ export async function POST(
     ok: true,
     id: result.id,
     rawToken: result.raw,
-    url: `${config.appUrl}/?access_token=${result.raw}`,
+    label: result.label,
+    expiresAt: result.expiresAt.toISOString(),
+    url: `${getPublicBaseUrl()}/?access_token=${result.raw}`,
   });
 }

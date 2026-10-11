@@ -3,6 +3,7 @@ import { QrCode } from "lucide-react";
 import { db } from "@/db";
 import { applicationAccessTokens } from "@/db/schema";
 import { getAdminContext } from "@/lib/auth";
+import { SCHOOL } from "@/lib/config";
 import QrManager from "./qr-manager";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 
@@ -53,7 +54,7 @@ export default async function QrPage({
           and export them as high-resolution QR codes.
         </p>
       </div>
-      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} total={Number(total)} />
+      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} total={Number(total)} school={{ name: SCHOOL.name, address: SCHOOL.address, motto: SCHOOL.motto }} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   type NotificationType,
 } from "@/db/schema";
 import { config } from "@/lib/config";
+import { getPublicBaseUrl } from "@/lib/public-url";
 import { randomToken, sha256Hex } from "@/lib/crypto";
 import {
   mailConfigured,
@@ -95,7 +96,7 @@ export async function deliverNotification(
 
   try {
     const acknowledgementToken = randomToken(32);
-    const acknowledgeUrl = `${config.appUrl}/acknowledge?token=${encodeURIComponent(acknowledgementToken)}`;
+    const acknowledgeUrl = `${getPublicBaseUrl()}/acknowledge?token=${encodeURIComponent(acknowledgementToken)}`;
     const rendered = renderNotification(row.log.notificationType, {
       applicationCode: row.app.applicationCode,
       firstName: row.app.firstName,

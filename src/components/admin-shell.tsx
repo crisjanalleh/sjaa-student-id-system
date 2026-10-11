@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  Bell,
+  Inbox,
   LogOut,
   MapPin,
   SlidersHorizontal,
@@ -12,33 +14,40 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SCHOOL } from "@/lib/config";
 import DisplayPreferences, { WorkspaceSection } from "@/components/display-preferences";
-import LocationEditor from "@/components/location-editor";
 import SjaaLogo from "@/components/sjaa-logo";
 import ManilaClock from "@/components/manila-clock";
+import PrintProgressDock from "@/components/print-progress/print-progress-dock";
+import type { UnreadCounts, UnreadSection } from "@/lib/unread";
 
-const NAV = [
+const NAV: { href: string; label: string; exact: boolean; unread?: UnreadSection }[] = [
   { href: "/admin", label: "Dashboard", exact: true },
-  { href: "/admin/applications", label: "Applications", exact: false },
+  { href: "/admin/applications", label: "Applications", exact: false, unread: "applications" },
   { href: "/admin/print", label: "Batch Print", exact: false },
   { href: "/admin/template", label: "ID Template", exact: false },
   { href: "/admin/qr", label: "QR Codes", exact: false },
-  { href: "/admin/notifications", label: "Notifications", exact: false },
+  { href: "/admin/notifications", label: "Notifications", exact: false, unread: "notifications" },
   { href: "/admin/audit", label: "Audit Trail", exact: false },
 ];
+
+const UNREAD_POLL_MS = 4_000;
+
+function badgeText(count: number) {
+  return count > 99 ? "99+" : String(count);
+}
 
 export default function AdminShell({
   fullName,
   username,
   avatarDataUrl,
   csrfToken,
-  address,
+  initialUnread,
   children,
 }: {
   fullName: string;
   username: string;
   avatarDataUrl: string | null;
   csrfToken: string;
-  address: string;
+  initialUnread: UnreadCounts;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -47,6 +56,46 @@ export default function AdminShell({
   const [logoutError, setLogoutError] = useState("");
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const workspaceMenu = useRef<HTMLDivElement>(null);
+  const [unread, setUnread] = useState<UnreadCounts>(initialUnread);
+  const activeSection = NAV.find((item) => item.unread && pathname.startsWith(item.href))?.unread ?? null;
+
+  // Opening a section marks it read; while it stays open, new arrivals refresh the page and are marked read too.
+  useEffect(() => {
+    let stopped = false;
+    async function sync(refreshIfNew: boolean) {
+      try {
+        let response = await fetch("/api/admin/unread", { cache: "no-store" });
+        let data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
+        if (!response.ok || !data.counts || stopped) return;
+        if (activeSection && (!refreshIfNew || data.counts[activeSection] > 0)) {
+          const hadNew = data.counts[activeSection] > 0;
+          response = await fetch("/api/admin/unread", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+            body: JSON.stringify({ section: activeSection }),
+          });
+          data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
+          if (hadNew && refreshIfNew && !stopped) router.refresh();
+        }
+        if (data.counts && !stopped) setUnread(data.counts);
+      } catch {
+        /* offline or signed out: keep the last known counts */
+      }
+    }
+    void sync(false);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void sync(true);
+    }, UNREAD_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void sync(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [activeSection, csrfToken, router]);
 
   useEffect(() => {
     if (!workspaceMenuOpen) return;
@@ -93,6 +142,7 @@ export default function AdminShell({
     <nav className="admin-nav" aria-label="Administration">
       {NAV.map((item) => {
         const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+        const count = item.unread ? unread[item.unread] : 0;
         return (
           <Link
             key={item.href}
@@ -101,7 +151,14 @@ export default function AdminShell({
             className="admin-nav-link"
             aria-current={active ? "page" : undefined}
           >
+            {item.unread === "applications" && <Inbox className="h-3.5 w-3.5" aria-hidden />}
+            {item.unread === "notifications" && <Bell className="h-3.5 w-3.5" aria-hidden />}
             {item.label}
+            {count > 0 && (
+              <span className="nav-badge" aria-label={`${count} new`}>
+                {badgeText(count)}
+              </span>
+            )}
           </Link>
         );
       })}
@@ -117,7 +174,7 @@ export default function AdminShell({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold leading-tight">{SCHOOL.name}</p>
               <p className="text-muted truncate text-[11px]">Student ID Issuance · Administration</p>
-              <p className="text-muted truncate text-[11px]">{address}</p>
+              <p className="text-muted truncate text-[11px]">{SCHOOL.address}</p>
             </div>
           </div>
           <ManilaClock />
@@ -154,13 +211,10 @@ export default function AdminShell({
                       <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                       <span>
                         <span className="admin-workspace-context-label">School location</span>
-                        <span className="admin-workspace-context-value">{address}</span>
+                        <span className="admin-workspace-context-value">{SCHOOL.address}</span>
                       </span>
                     </div>
                   </div>
-                </WorkspaceSection>
-                <WorkspaceSection title="School location" icon={<MapPin className="h-4 w-4" aria-hidden />} summary="Edit address">
-                  <LocationEditor address={address} csrfToken={csrfToken} />
                 </WorkspaceSection>
                 <DisplayPreferences />
               </div>
@@ -193,6 +247,7 @@ export default function AdminShell({
         </div>
       </div>
       <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</main>
+      <PrintProgressDock />
     </div>
   );
 }

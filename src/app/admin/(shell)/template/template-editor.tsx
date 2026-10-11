@@ -66,8 +66,8 @@ function Toggle({
         <span className="text-muted block text-xs">{description}</span>
       </span>
       <span
-        className="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-        style={{ background: checked ? "var(--academic-blue)" : "var(--line-strong)" }}
+        className="relative mt-0.5 block shrink-0 rounded-full transition-colors"
+        style={{ width: 40, height: 22, background: checked ? "var(--academic-blue)" : "var(--line-strong)" }}
       >
         <input
           id={id}
@@ -77,8 +77,8 @@ function Toggle({
           onChange={(e) => onChange(e.target.checked)}
         />
         <span
-          className="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-          style={{ transform: checked ? "translateX(18px)" : "translateX(2px)" }}
+          className="absolute rounded-full bg-white shadow transition-[left]"
+          style={{ top: 2, width: 18, height: 18, left: checked ? 20 : 2 }}
           aria-hidden
         />
       </span>

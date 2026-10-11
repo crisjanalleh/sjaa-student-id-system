@@ -12,8 +12,8 @@ import {
 import { IdCard, type IdCardData } from "@/components/id-card";
 import { formatDateTime } from "@/lib/format";
 import { normalizeTemplateSnapshot } from "@/lib/template";
-import PrintButton from "./print-button";
-import PrintedConfirmation from "./printed-confirmation";
+import PrintWorkflow from "./print-workflow";
+import { getPrintDetail } from "@/lib/print-progress";
 import { getAdminContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -96,15 +96,14 @@ export default async function PrintBatchOutputPage({
             {batch.printedAt ? `Printed ${formatDateTime(batch.printedAt)}` : `Created ${formatDateTime(batch.createdAt)}`}
           </p>
         </div>
-        <PrintButton />
       </div>
 
-      <PrintedConfirmation
+      <PrintWorkflow
         batchId={batch.id}
         batchCode={batch.batchCode}
-        cardCount={items.length}
         printedAt={batch.printedAt?.toISOString() ?? null}
         csrfToken={ctx.csrfToken}
+        initial={await getPrintDetail(batch.id)}
       />
 
       <div className="no-print mx-auto mb-4 mt-4 flex max-w-4xl items-start gap-2 rounded-md border px-4 py-3 text-xs leading-relaxed" style={{ borderColor: "var(--line-strong)", background: "var(--card)", color: "var(--muted)" }}>
@@ -126,6 +125,7 @@ export default async function PrintBatchOutputPage({
               <div
                 key={`front-page-${pageIndex}`}
                 className="print-page"
+                data-set={pageIndex + 1}
                 data-orientation={template.orientation}
               >
                 {pageItems.map(({ app }) => (
@@ -149,6 +149,7 @@ export default async function PrintBatchOutputPage({
               <div
                 key={`back-page-${pageIndex}`}
                 className="print-page"
+                data-set={pageIndex + 1}
                 data-orientation={template.orientation}
               >
                 {pageItems.map(({ app }) => (

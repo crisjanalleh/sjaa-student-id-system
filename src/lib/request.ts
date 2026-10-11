@@ -1,6 +1,13 @@
 import { config } from "@/lib/config";
+import { isTunnelActive } from "@/lib/public-url";
 
 export function clientIp(req: Request): string {
+  // Through the Cloudflare tunnel, every request originates from localhost, so
+  // the real student address is only available in Cloudflare's own header.
+  if (isTunnelActive()) {
+    const cf = req.headers.get("cf-connecting-ip");
+    if (cf) return cf.trim().slice(0, 64);
+  }
   if (config.trustedProxy) {
     const fwd = req.headers.get("x-forwarded-for");
     if (fwd) {

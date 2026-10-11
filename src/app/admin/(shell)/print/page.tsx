@@ -8,6 +8,8 @@ import { getAdminContext } from "@/lib/auth";
 import { formatDateTime, fullName } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import PrintSelect from "./print-select";
+import BatchProgressCell from "./batch-progress-cell";
+import { listRecentSummaries } from "@/lib/print-progress";
 import { ListCard, ListLink, Pager } from "@/components/list-card";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +54,7 @@ export default async function PrintSelectPage({
       .limit(PAGE_SIZE),
   ]);
   const totalPages = Math.max(1, Math.ceil(Number(totalApproved) / PAGE_SIZE));
+  const summaryById = new Map((await listRecentSummaries(PAGE_SIZE)).map((entry) => [entry.batchId, entry]));
   const page = Math.min(requestedPage, totalPages);
   const approved = await db
     .select()
@@ -126,6 +129,7 @@ export default async function PrintSelectPage({
                   <th>Template</th>
                   <th>Created By</th>
                   <th>Created / Printed</th>
+                  <th>Progress</th>
                   <th className="!text-right">Output</th>
                 </tr>
               </thead>
@@ -140,6 +144,9 @@ export default async function PrintSelectPage({
                       {batch.printedAt
                         ? `Printed ${formatDateTime(batch.printedAt)}`
                         : `Created ${formatDateTime(batch.createdAt)}`}
+                    </td>
+                    <td>
+                      <BatchProgressCell batchId={batch.id} summary={summaryById.get(batch.id) ?? null} />
                     </td>
                     <td className="!text-right">
                       <Link href={`/admin/print/${batch.id}`} className="btn btn-outline btn-sm" target="_blank">

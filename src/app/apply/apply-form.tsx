@@ -8,8 +8,10 @@ import {
   Loader2,
   PenLine,
   Printer,
+  QrCode,
   RefreshCw,
   ShieldCheck,
+  TimerReset,
   TriangleAlert,
   X,
   ZoomIn,
@@ -24,10 +26,14 @@ import {
 } from "react";
 import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
 import SelectField from "@/components/select-field";
+import SignatureField from "./signature-field";
 
 type FieldErrors = Record<string, string>;
 
 const MAX_PHOTO_MB = 5;
+const IDLE_LIMIT_MS = 30 * 60 * 1000;
+const IDLE_WARNING_MS = 27 * 60 * 1000;
+const PING_EVERY_MS = 60 * 1000;
 const CROP_W = 300;
 const CROP_H = 400;
 
@@ -329,14 +335,56 @@ export default function ApplyForm({
   const [receiptMessage, setReceiptMessage] = useState("");
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
-  const [studentSignatureDrawn, setStudentSignatureDrawn] = useState(false);
+  const [signature, setSignature] = useState("");
   const [cropSrc, setCropSrc] = useState("");
   const [cameraOpen, setCameraOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
-  const signatureDrawing = useRef(false);
   const previewUrls = useRef(new Set<string>());
   const submissionInFlight = useRef(false);
+  const [idleState, setIdleState] = useState<"active" | "warning" | "expired">("active");
+  const lastActive = useRef(0);
+  const lastPing = useRef(0);
+
+  // Idle protection: the form only stays on this phone while the student keeps using it.
+  useEffect(() => {
+    if (successCode) return;
+    const now = () => Date.now();
+    lastActive.current = now();
+    lastPing.current = now();
+    const markActive = () => {
+      lastActive.current = now();
+    };
+    const events = ["pointerdown", "keydown", "touchstart", "scroll", "input"] as const;
+    events.forEach((name) => window.addEventListener(name, markActive, { passive: true, capture: true }));
+
+    async function tick() {
+      const idle = now() - lastActive.current;
+      if (idle >= IDLE_LIMIT_MS) {
+        setIdleState("expired");
+        return;
+      }
+      setIdleState(idle >= IDLE_WARNING_MS ? "warning" : "active");
+      if (lastActive.current > lastPing.current && now() - lastPing.current >= PING_EVERY_MS) {
+        lastPing.current = now();
+        try {
+          const res = await fetch("/api/apply/keepalive", { method: "POST", headers: { "x-csrf-token": csrfToken } });
+          if (res.status === 401) setIdleState("expired");
+        } catch {
+          /* offline: the next tick retries */
+        }
+      }
+    }
+    const timer = window.setInterval(() => void tick(), 10_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      events.forEach((name) => window.removeEventListener(name, markActive, { capture: true }));
+    };
+  }, [csrfToken, successCode]);
 
   useEffect(() => () => {
     previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
@@ -428,9 +476,7 @@ export default function ApplyForm({
   };
 
   const clearStudentSignature = () => {
-    const canvas = signatureCanvasRef.current;
-    if (canvas) canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
-    setStudentSignatureDrawn(false);
+    setSignature("");
     setErrors((current) => {
       const next = { ...current };
       delete next.studentSignature;
@@ -457,10 +503,10 @@ export default function ApplyForm({
       document.getElementById("photo_upload")?.focus();
       return;
     }
-    if (!studentSignatureDrawn) {
+    if (!signature) {
       setErrors((current) => ({
         ...current,
-        studentSignature: "Please draw your signature before submitting.",
+        studentSignature: "Please add your signature — sign manually or upload an e-signature.",
       }));
       document.getElementById("student_signature")?.focus();
       return;
@@ -471,17 +517,7 @@ export default function ApplyForm({
     for (const [k, v] of Object.entries(values)) fd.set(k, v);
     fd.set("consent", values.consent ? "true" : "");
     if (photoBlob) fd.set("photo", photoBlob, "photo.jpg");
-    const signatureCanvas = signatureCanvasRef.current;
-    if (!signatureCanvas) {
-      submissionInFlight.current = false;
-      setErrors((current) => ({
-        ...current,
-        studentSignature: "The signature pad is unavailable. Reload the page and try again.",
-      }));
-      return;
-    }
-    fd.set("studentSignature", signatureCanvas.toDataURL("image/png"));
-
+    fd.set("studentSignature", signature);
     setSubmitting(true);
     try {
       const res = await fetch("/api/apply", {
@@ -570,8 +606,38 @@ export default function ApplyForm({
     </div>
   );
 
+  if (idleState === "expired" && !successCode) {
+    return (
+      <div className="card mx-auto max-w-xl p-8 text-center" role="alert">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ background: "var(--bg)" }}>
+          <TimerReset className="h-6 w-6" style={{ color: "var(--danger)" }} aria-hidden />
+        </div>
+        <h1 className="text-lg font-bold">Your form timed out</h1>
+        <p className="text-muted mt-2 text-sm leading-relaxed">
+          To protect your information, the form closes after 30 minutes without activity, and what you typed has been cleared.
+          Please scan the school&apos;s official application QR code again to start fresh — it only takes a few minutes.
+        </p>
+        <p className="text-muted mt-4 flex items-center justify-center gap-2 text-xs">
+          <QrCode className="h-4 w-4" aria-hidden /> Tip: have your details and photo ready before you scan.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={onSubmit} noValidate className="application-form">
+      {idleState === "warning" && !successCode && (
+        <div
+          className="sticky top-2 z-30 mb-4 flex items-start gap-2 rounded-md border px-4 py-3 text-sm shadow-md"
+          style={{ borderColor: "var(--accent-fill)", background: "var(--card)" }}
+          role="status"
+        >
+          <TimerReset className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            <strong>Still there?</strong> This form will close in about 3 minutes because of inactivity. Tap or type anything to keep going.
+          </span>
+        </div>
+      )}
       <div className="mb-6">
         <div className="card overflow-hidden">
           <div className="h-1" style={{ background: "var(--accent-gold)" }} />
@@ -626,11 +692,13 @@ export default function ApplyForm({
             required: true,
             placeholder: "e.g. 123456789012",
             autoComplete: "off",
+            inputMode: "numeric",
+            hint: "Type it exactly as shown on your school records or report card.",
           })}
-          {field("firstName", "First Name", { required: true, autoComplete: "given-name", half: true })}
-          {field("middleName", "Middle Name (optional)", { autoComplete: "additional-name", half: true })}
-          {field("lastName", "Last Name", { required: true, autoComplete: "family-name", half: true })}
-          {field("suffix", "Suffix (optional)", { placeholder: "e.g. Jr., III", half: true })}
+          {field("firstName", "First Name", { required: true, autoComplete: "given-name", placeholder: "e.g. Maria", half: true })}
+          {field("middleName", "Middle Name (optional)", { autoComplete: "additional-name", placeholder: "e.g. Santos", half: true })}
+          {field("lastName", "Last Name", { required: true, autoComplete: "family-name", placeholder: "e.g. Dela Cruz", half: true })}
+          {field("suffix", "Suffix (optional)", { placeholder: "e.g. Jr., III (leave blank if none)", half: true })}
           <div className="sm:col-span-2">
             <label className="lbl" htmlFor="f_address">
               Address <span style={{ color: "var(--danger)" }}>*</span>
@@ -641,6 +709,7 @@ export default function ApplyForm({
               rows={2}
               value={values.address}
               onChange={set("address")}
+              placeholder="House/Lot no., Street, Barangay, Municipality, Province"
               autoComplete="street-address"
               aria-invalid={Boolean(errors.address)}
             />
@@ -715,6 +784,7 @@ export default function ApplyForm({
             required: true,
             autoComplete: "email",
             inputMode: "email",
+            placeholder: "e.g. maria.delacruz@gmail.com",
             hint: "Required so the school can send you application updates.",
             half: true,
           })}
@@ -726,6 +796,7 @@ export default function ApplyForm({
           })}
           {field("emergencyContactName", "Emergency Contact Person", {
             required: true,
+            placeholder: "e.g. Juan Dela Cruz (parent or guardian)",
             half: true,
           })}
           {field("emergencyContactPhone", "Emergency Contact Phone", {
@@ -800,77 +871,20 @@ export default function ApplyForm({
           </div>
         </div>
         <div className="mt-6 border-t pt-5" style={{ borderColor: "var(--line)" }}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <label className="lbl mb-0 flex items-center gap-1.5" htmlFor="student_signature">
-                <PenLine className="h-4 w-4" aria-hidden />
-                Student Handwritten Signature <span style={{ color: "var(--danger)" }}>*</span>
-              </label>
-              <p className="text-muted mt-1 text-xs">
-                Draw your signature below. It will be printed on the front of your ID.
-              </p>
-            </div>
-            <button type="button" className="btn btn-outline btn-sm" onClick={clearStudentSignature}>
-              <X className="h-4 w-4" aria-hidden /> Clear signature
-            </button>
-          </div>
-          <canvas
-            id="student_signature"
-            ref={signatureCanvasRef}
-            width={900}
-            height={280}
-            className="student-signature-pad block w-full touch-none rounded-md border"
-            style={{ borderColor: errors.studentSignature ? "var(--danger)" : "var(--line-strong)", background: "#fff" }}
-            aria-label="Draw your handwritten signature"
-            aria-invalid={Boolean(errors.studentSignature)}
-            onPointerDown={(event) => {
-              const canvas = event.currentTarget;
-              const rect = canvas.getBoundingClientRect();
-              const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
-              const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-              const context = canvas.getContext("2d");
-              if (!context) return;
-              canvas.setPointerCapture(event.pointerId);
-              signatureDrawing.current = true;
-              context.beginPath();
-              context.moveTo(x, y);
-              context.lineWidth = 8;
-              context.lineCap = "round";
-              context.lineJoin = "round";
-              context.strokeStyle = "#102f56";
-              context.lineTo(x + 0.1, y + 0.1);
-              context.stroke();
+          <SignatureField
+            value={signature}
+            onChange={(next) => {
+              setSignature(next);
+              if (next) {
+                setErrors((current) => {
+                  const rest = { ...current };
+                  delete rest.studentSignature;
+                  return rest;
+                });
+              }
             }}
-            onPointerMove={(event) => {
-              if (!signatureDrawing.current) return;
-              const canvas = event.currentTarget;
-              const rect = canvas.getBoundingClientRect();
-              const context = canvas.getContext("2d");
-              if (!context) return;
-              context.lineTo(
-                ((event.clientX - rect.left) / rect.width) * canvas.width,
-                ((event.clientY - rect.top) / rect.height) * canvas.height,
-              );
-              context.stroke();
-            }}
-            onPointerUp={() => {
-              signatureDrawing.current = false;
-              setStudentSignatureDrawn(true);
-              setErrors((current) => {
-                const next = { ...current };
-                delete next.studentSignature;
-                return next;
-              });
-            }}
-            onPointerCancel={() => { signatureDrawing.current = false; }}
+            error={errors.studentSignature}
           />
-          <p className="text-muted mt-1 text-xs">Use a mouse, stylus, or finger. Your signature is stored with your private application record.</p>
-          {errors.studentSignature && <p className="field-error" role="alert">{errors.studentSignature}</p>}
-          {studentSignatureDrawn && !errors.studentSignature && (
-            <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--success)" }}>
-              <CheckCircle2 className="h-4 w-4" aria-hidden /> Signature ready.
-            </p>
-          )}
         </div>
       </section>
 
