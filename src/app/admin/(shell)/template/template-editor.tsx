@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Loader2, RotateCcw, Save, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { CheckCircle2, ChevronDown, Eye, Loader2, RotateCcw, Save, SlidersHorizontal, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { SAMPLE_CARD_DATA, ScaledIdCard } from "@/components/id-card";
@@ -13,10 +13,12 @@ function ResponsiveCardPreview({
   variant,
   template,
   gradeLevel,
+  className = "",
 }: {
   variant: "front" | "back";
   template: AdminTemplateConfig;
   gradeLevel: string;
+  className?: string;
 }) {
   const stage = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -36,7 +38,7 @@ function ResponsiveCardPreview({
   }, []);
 
   return (
-    <div ref={stage} className="flex min-w-0 justify-center overflow-hidden py-1" style={{ minHeight: cardHeightMm * 3.7795 * scale + 8 }}>
+    <div ref={stage} className={`flex min-w-0 justify-center overflow-hidden py-1 ${className}`} style={{ minHeight: cardHeightMm * 3.7795 * scale + 8 }}>
       <ScaledIdCard scale={scale} variant={variant} data={{ ...SAMPLE_CARD_DATA, gradeLevel }} template={template} />
     </div>
   );
@@ -203,7 +205,12 @@ export default function TemplateEditor({
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Editor panel */}
         <section className="card h-fit p-5 lg:col-span-2">
-          <h2 className="mb-4 text-sm font-bold">Template Settings</h2>
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            Template Settings
+          </h2>
 
           {serverError && (
             <div className="mb-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--danger)" }} role="alert">
@@ -332,145 +339,202 @@ export default function TemplateEditor({
             </p>
           </section>
 
-          <details
-            className="template-adjustment-panel mb-5 rounded-xl border p-3"
-            style={{ borderColor: "var(--line)" }}
-            open={adjustmentPanel === "signature"}
-            onToggle={(event) => setAdjustmentPanel(event.currentTarget.open ? "signature" : null)}
-          >
-            <summary className="cursor-pointer text-sm font-bold">Optional signature size &amp; placement</summary>
-            <p className="text-muted mb-4 mt-2 text-xs leading-relaxed">
-              Changes update the live preview after saving. The saved image keeps its original detail while being resized for display.
-            </p>
-            <div className="mb-4">
-              <label className="lbl flex justify-between" htmlFor="design_signature_scale">
-                <span>Signature size</span><span>{Math.round(values.designSettings.signatoryScale * 100)}%</span>
-              </label>
-              <input id="design_signature_scale" type="range" min="0.6" max="1.8" step="0.05" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.signatoryScale} onChange={(e) => setDesign("signatoryScale", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_signature_x">Horizontal placement · {values.designSettings.signatoryOffsetX.toFixed(1)} mm</label>
-              <input id="design_signature_x" type="range" min="-8" max="8" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.signatoryOffsetX} onChange={(e) => setDesign("signatoryOffsetX", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_signature_y">Vertical placement · {values.designSettings.signatoryOffsetY.toFixed(1)} mm</label>
-              <input id="design_signature_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.signatoryOffsetY} onChange={(e) => setDesign("signatoryOffsetY", Number(e.target.value))} />
-            </div>
+          {/* Modernized adjustment panels */}
+          <div className="mb-5 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elevated)] shadow-xs">
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setValues((current) => ({
-                  ...current,
-                  designSettings: {
-                    ...current.designSettings,
-                    signatoryScale: 1,
-                    signatoryOffsetX: 0,
-                    signatoryOffsetY: 0,
-                  },
-                }));
-                setSaved(false);
-              }}
+              className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-[var(--bg)]/50"
+              onClick={() => setAdjustmentPanel(adjustmentPanel === "signature" ? null : "signature")}
             >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset signature placement
+              <span className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+                <SlidersHorizontal className="h-4 w-4 text-[var(--academic-blue)]" />
+                Optional signature size & placement
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${adjustmentPanel === "signature" ? "rotate-180" : ""}`} />
             </button>
-          </details>
+            <div className={`grid transition-all duration-300 ease-in-out ${adjustmentPanel === "signature" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className="overflow-hidden">
+                <div className="border-t border-[var(--line)]/50 px-4 pb-4 pt-3">
+                  <p className="text-muted mb-4 text-xs leading-relaxed">
+                    Changes update the live preview after saving. The saved image keeps its original detail while being resized for display.
+                  </p>
+                  <div className="mb-4">
+                    <label className="lbl flex justify-between" htmlFor="design_signature_scale">
+                      <span>Signature size</span><span>{Math.round(values.designSettings.signatoryScale * 100)}%</span>
+                    </label>
+                    <input id="design_signature_scale" type="range" min="0.6" max="1.8" step="0.05" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.signatoryScale} onChange={(e) => setDesign("signatoryScale", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_signature_x">Horizontal placement · {values.designSettings.signatoryOffsetX.toFixed(1)} mm</label>
+                    <input id="design_signature_x" type="range" min="-8" max="8" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.signatoryOffsetX} onChange={(e) => setDesign("signatoryOffsetX", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_signature_y">Vertical placement · {values.designSettings.signatoryOffsetY.toFixed(1)} mm</label>
+                    <input id="design_signature_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.signatoryOffsetY} onChange={(e) => setDesign("signatoryOffsetY", Number(e.target.value))} />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setValues((current) => ({
+                        ...current,
+                        designSettings: {
+                          ...current.designSettings,
+                          signatoryScale: 1,
+                          signatoryOffsetX: 0,
+                          signatoryOffsetY: 0,
+                        },
+                      }));
+                      setSaved(false);
+                    }}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset signature placement
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <details
-            className="template-adjustment-panel mb-5 rounded-xl border p-3"
-            style={{ borderColor: "var(--line)" }}
-            open={adjustmentPanel === "layout"}
-            onToggle={(event) => setAdjustmentPanel(event.currentTarget.open ? "layout" : null)}
-          >
-            <summary className="cursor-pointer text-sm font-bold">Optional card layout adjustments</summary>
-            <p className="text-muted mb-4 mt-2 text-xs leading-relaxed">
-              These controls adjust the front layout. Open this panel while viewing the preview; use Reset to return to the standard layout.
-            </p>
-            <div className="mb-4">
-              <label className="lbl flex justify-between" htmlFor="design_name_size">
-                <span>Student name size</span><span>{values.designSettings.nameFontSize.toFixed(1)} px</span>
-              </label>
-              <input id="design_name_size" type="range" min="8" max="14" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.nameFontSize} onChange={(e) => setDesign("nameFontSize", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl flex justify-between" htmlFor="design_detail_scale">
-                <span>Supporting text size</span><span>{Math.round(values.designSettings.detailFontScale * 100)}%</span>
-              </label>
-              <input id="design_detail_scale" type="range" min="0.8" max="1.25" step="0.05" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.detailFontScale} onChange={(e) => setDesign("detailFontScale", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_name_x">Name horizontal position · {values.designSettings.nameOffsetX.toFixed(1)} mm</label>
-              <input id="design_name_x" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.nameOffsetX} onChange={(e) => setDesign("nameOffsetX", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_name_y">Name vertical position · {values.designSettings.nameOffsetY.toFixed(1)} mm</label>
-              <input id="design_name_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.nameOffsetY} onChange={(e) => setDesign("nameOffsetY", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl flex justify-between" htmlFor="design_photo_scale">
-                <span>Photo size</span><span>{Math.round(values.designSettings.photoScale * 100)}%</span>
-              </label>
-              <input id="design_photo_scale" type="range" min="0.8" max="1.25" step="0.05" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.photoScale} onChange={(e) => setDesign("photoScale", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_photo_x">Photo horizontal position · {values.designSettings.photoOffsetX.toFixed(1)} mm</label>
-              <input id="design_photo_x" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.photoOffsetX} onChange={(e) => setDesign("photoOffsetX", Number(e.target.value))} />
-            </div>
-            <div className="mb-4">
-              <label className="lbl" htmlFor="design_photo_y">Photo vertical position · {values.designSettings.photoOffsetY.toFixed(1)} mm</label>
-              <input id="design_photo_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
-                value={values.designSettings.photoOffsetY} onChange={(e) => setDesign("photoOffsetY", Number(e.target.value))} />
-            </div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => set("designSettings", { ...DEFAULT_CARD_DESIGN, signatorySignature: values.designSettings.signatorySignature })}>
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset layout
+          <div className="mb-5 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--elevated)] shadow-xs">
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-[var(--bg)]/50"
+              onClick={() => setAdjustmentPanel(adjustmentPanel === "layout" ? null : "layout")}
+            >
+              <span className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+                <SlidersHorizontal className="h-4 w-4 text-[var(--academic-blue)]" />
+                Optional card layout adjustments
+              </span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${adjustmentPanel === "layout" ? "rotate-180" : ""}`} />
             </button>
-          </details>
+            <div className={`grid transition-all duration-300 ease-in-out ${adjustmentPanel === "layout" ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+              <div className="overflow-hidden">
+                <div className="border-t border-[var(--line)]/50 px-4 pb-4 pt-3">
+                  <p className="text-muted mb-4 text-xs leading-relaxed">
+                    These controls adjust the front layout. Open this panel while viewing the preview; use Reset to return to the standard layout.
+                  </p>
+                  <div className="mb-4">
+                    <label className="lbl flex justify-between" htmlFor="design_name_size">
+                      <span>Student name size</span><span>{values.designSettings.nameFontSize.toFixed(1)} px</span>
+                    </label>
+                    <input id="design_name_size" type="range" min="8" max="14" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.nameFontSize} onChange={(e) => setDesign("nameFontSize", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl flex justify-between" htmlFor="design_detail_scale">
+                      <span>Supporting text size</span><span>{Math.round(values.designSettings.detailFontScale * 100)}%</span>
+                    </label>
+                    <input id="design_detail_scale" type="range" min="0.8" max="1.25" step="0.05" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.detailFontScale} onChange={(e) => setDesign("detailFontScale", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_name_x">Name horizontal position · {values.designSettings.nameOffsetX.toFixed(1)} mm</label>
+                    <input id="design_name_x" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.nameOffsetX} onChange={(e) => setDesign("nameOffsetX", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_name_y">Name vertical position · {values.designSettings.nameOffsetY.toFixed(1)} mm</label>
+                    <input id="design_name_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.nameOffsetY} onChange={(e) => setDesign("nameOffsetY", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl flex justify-between" htmlFor="design_photo_scale">
+                      <span>Photo size</span><span>{Math.round(values.designSettings.photoScale * 100)}%</span>
+                    </label>
+                    <input id="design_photo_scale" type="range" min="0.8" max="1.25" step="0.05" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.photoScale} onChange={(e) => setDesign("photoScale", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_photo_x">Photo horizontal position · {values.designSettings.photoOffsetX.toFixed(1)} mm</label>
+                    <input id="design_photo_x" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.photoOffsetX} onChange={(e) => setDesign("photoOffsetX", Number(e.target.value))} />
+                  </div>
+                  <div className="mb-4">
+                    <label className="lbl" htmlFor="design_photo_y">Photo vertical position · {values.designSettings.photoOffsetY.toFixed(1)} mm</label>
+                    <input id="design_photo_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
+                      value={values.designSettings.photoOffsetY} onChange={(e) => setDesign("photoOffsetY", Number(e.target.value))} />
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => set("designSettings", { ...DEFAULT_CARD_DESIGN, signatorySignature: values.designSettings.signatorySignature })}>
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset layout
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <button type="submit" className="btn btn-gold w-full" disabled={busy || !hasUnsavedChanges}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-            {busy ? "Saving template…" : hasUnsavedChanges ? "Save Template" : "All Changes Saved"}
+            {busy ? "Saving template…" : hasUnsavedChanges ? "Save Template" : "Save Changes"}
           </button>
         </section>
 
         {/* Live preview with sample data only (no real student records). */}
         <section className="lg:col-span-3">
-          <div className="card p-5">
-            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-sm font-bold">Live Preview</h2>
-              <div className="flex gap-1" role="group" aria-label="Preview level">
+          <div className="card overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+                    <Eye className="h-3.5 w-3.5" aria-hidden />
+                  </span>
+                  Live Preview
+                </h2>
+                <p className="text-muted mt-1.5 text-xs leading-relaxed">
+                  Sample data shown for layout only — actual records are never rendered here.
+                </p>
+              </div>
+
+              <div
+                className="flex gap-1 rounded-full border border-[var(--line)] bg-[var(--elevated)] p-1"
+                role="group"
+                aria-label="Preview level"
+              >
                 {(["shs", "jhs"] as const).map((level) => (
                   <button
                     key={level}
                     type="button"
-                    className={previewLevel === level ? "btn btn-gold" : "btn btn-ghost"}
+                    className={`min-w-[7.5rem] rounded-full px-3 py-1.5 text-center text-xs font-semibold transition-colors duration-300 sm:min-w-[9.5rem] ${
+                      previewLevel === level
+                        ? "bg-[var(--accent-fill)] text-white shadow-sm"
+                        : "text-muted hover:text-[var(--ink)]"
+                    }`}
                     aria-pressed={previewLevel === level}
                     onClick={() => setPreviewLevel(level)}
                   >
-                    {level === "shs" ? "Senior High · 2-year" : "Junior High · 4-year"}
+                    {level === "shs" ? "Senior High" : "Junior High"}
                   </button>
                 ))}
               </div>
             </div>
-            <p className="text-muted mb-5 text-xs">
-              Sample data shown for layout only — actual records are never rendered here.
-            </p>
-            <div className="grid min-w-0 gap-5 2xl:grid-cols-2">
-              <div className="min-w-0">
-                <p className="lbl">Front · {values.orientation}</p>
-                <ResponsiveCardPreview variant="front" template={values} gradeLevel={previewGrade} />
-              </div>
-              <div className="min-w-0">
-                <p className="lbl">Back</p>
-                <ResponsiveCardPreview variant="back" template={values} gradeLevel={previewGrade} />
+
+            <div className="id-preview-stage p-5">
+              <div className="grid min-w-0 gap-5 2xl:grid-cols-2">
+                {(
+                  [
+                    { variant: "front", label: "Front", hint: "Portrait · CR80 53.98 × 85.60 mm" },
+                    { variant: "back", label: "Back", hint: "Validation grid & signatory" },
+                  ] as const
+                ).map((face) => (
+                  <figure key={face.variant} className="id-preview-tile">
+                    {/* Placeholder slot to keep previews level */}
+                    <div className="flex min-h-2 items-center justify-center" aria-hidden="true" />
+                    
+                    <figcaption className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="id-preview-chip">{face.label}</span>
+                      <span className="text-muted text-[11px]">{face.hint}</span>
+                    </figcaption>
+                    <ResponsiveCardPreview
+                      key={face.variant === "front" ? `${face.variant}-${previewLevel}` : face.variant}
+                      variant={face.variant}
+                      template={values}
+                      gradeLevel={previewGrade}
+                      className={face.variant === "front" ? "id-preview-swap" : ""}
+                    />
+                  </figure>
+                ))}
               </div>
             </div>
           </div>

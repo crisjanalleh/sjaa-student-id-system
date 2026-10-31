@@ -24,6 +24,7 @@
   --sidebar-ink: #f4f0e3;
   --danger: #b91c1c;
   --success: #15803d;
+  --indicator-active: #10b981;
   --badge-pending-bg: #fef3c7;
   --badge-pending-ink: #92400e;
   --badge-pending-line: #fde68a;
@@ -113,7 +114,12 @@ html[data-density="compact"] {
   --d-main-y: 0.75rem;
   --d-main-y-lg: 1rem;
 }
-/* Text size scales the whole interface (including px-sized text); print resets it. */
+/* Text size scales the whole interface (including px-sized text); print resets it.
+   --ui-scale mirrors the zoom so fixed chrome can divide it back out (see .sidebar). */
+:root { --ui-scale: 1; }
+html[data-font="small"] { --ui-scale: 0.88; }
+html[data-font="large"] { --ui-scale: 1.15; }
+html[data-font="xlarge"] { --ui-scale: 1.3; }
 html[data-font="small"] body { zoom: 0.88; }
 html[data-font="large"] body { zoom: 1.15; }
 html[data-font="xlarge"] body { zoom: 1.3; }
@@ -519,6 +525,12 @@ textarea.inp {
 .badge-rejected { --st: var(--st-rejected); }
 .badge-printed { --st: var(--st-printed); }
 .badge-claimed { --st: var(--st-claimed); }
+.badge-neutral {
+  --st: var(--muted);
+  background: color-mix(in srgb, var(--muted) 14%, var(--card));
+  color: color-mix(in srgb, var(--muted) 84%, var(--ink));
+  border-color: color-mix(in srgb, var(--muted) 32%, var(--card));
+}
 
 /* Semantic workflow colors: pending amber, approved blue, rejected red, printed violet, claimed green. */
 :root {
@@ -974,6 +986,93 @@ a.pager-btn:active { transform: scale(0.96); }
   background: var(--academic-blue);
 }
 
+/* Issuance summary: soft-edged outline cards (no icons, no colour coding). */
+.ax-stat {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: color-mix(in srgb, var(--bg) 40%, var(--card));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.ax-stat-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.ax-stat-value {
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ax-stat-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+/* Waterdrop toggle: a wide punch-hole handle notched into the card's bottom border. */
+.ax-drop-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.ax-drop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: min(220px, 62%);
+  min-width: 168px;
+  height: 38px;
+  transform: translateY(50%);
+  border: 1px solid var(--line);
+  border-radius: 13px 13px 50% 50% / 13px 13px 100% 100%;
+  background: var(--elevated);
+  color: var(--muted);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03), inset 0 5px 9px -7px rgba(15, 23, 42, 0.5);
+  transition: color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.ax-drop:hover {
+  color: var(--academic-blue);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), inset 0 5px 9px -7px rgba(15, 23, 42, 0.3);
+}
+.ax-drop:focus-visible {
+  outline: 2px solid var(--academic-blue);
+  outline-offset: 2px;
+}
+.ax-drop-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: ax-drop-icon-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+@keyframes ax-drop-icon-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.6) rotate(-70deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .page-head-stack {
   margin-bottom: 20px;
   padding-bottom: 14px;
@@ -1009,6 +1108,88 @@ a.pager-btn:active { transform: scale(0.96); }
 }
 .badge-expired {
   background: var(--badge-rejected-bg); color: var(--badge-rejected-ink); border-color: var(--badge-rejected-line);
+}
+
+/* --- Dashboard analytics -------------------------------------------------- */
+.dash-icon-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  color: var(--dash-accent, var(--academic-blue));
+  background: color-mix(in srgb, var(--dash-accent, var(--academic-blue)) 14%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-accent, var(--academic-blue)) 24%, transparent);
+}
+.dash-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+}
+.dash-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--field-bg);
+  color: var(--muted);
+}
+
+/* --- ID template preview -------------------------------------------------- */
+.id-preview-stage {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, var(--line-strong) 45%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 18px 18px;
+}
+.id-preview-tile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--elevated);
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+}
+.id-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--academic-blue) 28%, var(--line));
+  background: color-mix(in srgb, var(--academic-blue) 10%, var(--card));
+  color: var(--academic-blue);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* Senior/Junior High switch: the front preview eases in instead of snapping. */
+@keyframes id-preview-swap {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.id-preview-swap {
+  animation: id-preview-swap 0.32s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* --- Tables --------------------------------------------------------------- */
@@ -1149,30 +1330,40 @@ a.pager-btn:active { transform: scale(0.96); }
 .admin-content {
   min-width: 0;
   flex: 1 1 auto;
+  margin-left: var(--sb-w);
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sidebar {
-  position: sticky;
+  /* Fixed to the viewport so the panel always matches the real visible height —
+     its bottom stays anchored on any screen or embedded preview. The explicit
+     height is divided by --ui-scale because `zoom` (the Text size preference)
+     also scales fixed boxes, which would otherwise leave the panel short of (or
+     past) the bottom edge. */
+  position: fixed;
   top: 0;
+  left: 0;
+  height: calc(100vh / var(--ui-scale));
+  height: calc(100dvh / var(--ui-scale));
   z-index: 40;
   display: flex;
   width: var(--sb-w);
-  height: 100vh;
-  flex: 0 0 var(--sb-w);
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--line-strong);
   background: var(--card);
   color: var(--ink);
   box-shadow: 2px 0 14px rgba(15, 23, 42, 0.05);
-  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), flex-basis 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sb-head {
   display: flex;
   min-height: 84px;
+  flex: 0 0 auto;
   align-items: center;
   gap: 14px;
   border-bottom: 1px solid var(--line);
@@ -1349,6 +1540,7 @@ a.pager-btn:active { transform: scale(0.96); }
 .sb-foot {
   border-top: 1px solid var(--line);
   padding: 16px 16px 18px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1423,7 +1615,7 @@ a.pager-btn:active { transform: scale(0.96); }
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--indicator-active);
   box-shadow: 0 0 0 2px var(--card);
 }
 .sb-profile-info {
@@ -2844,7 +3036,6 @@ html[data-theme="dark"] .btn-signout:hover:not(:disabled) {
   .admin-app[data-collapsed="true"] .sidebar {
     position: fixed;
     top: 0;
-    bottom: 0;
     left: 0;
     z-index: 90;
     width: min(300px, 86vw);
@@ -2892,6 +3083,7 @@ html[data-theme="dark"] .btn-signout:hover:not(:disabled) {
 }
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
+  .admin-content,
   .sb-label,
   .sb-workspace-body,
   .sb-backdrop {

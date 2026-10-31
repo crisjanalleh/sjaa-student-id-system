@@ -95,16 +95,21 @@ export default function PrintSelect({
   }
 
   return (
-    <section className="card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
+    <section>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
         <div>
-          <h2 className="text-sm font-bold">Eligible Records — Approved</h2>
-          <p className="text-muted text-xs">
-            Showing {applications.length} approved application{applications.length === 1 ? "" : "s"} ·{" "}
-            {selected.size} of {MAX_BATCH_SIZE} maximum selected
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+              <Printer className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            Eligible Records — Approved
+          </h2>
+          <p className="text-muted mt-1 text-xs">
+            {applications.length} approved application{applications.length === 1 ? "" : "s"} available ·{" "}
+            {selected.size} of {MAX_BATCH_SIZE} selected
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button type="button" className="btn btn-outline btn-sm" onClick={toggleAll} disabled={applications.length === 0 || busy}>
             {allSelected ? <Square className="h-4 w-4" aria-hidden /> : <CheckSquare2 className="h-4 w-4" aria-hidden />}
             {allSelected ? "Clear selection" : `Select first ${Math.min(MAX_BATCH_SIZE, applications.length)}`}
@@ -121,21 +126,29 @@ export default function PrintSelect({
       </div>
 
       {error && (
-        <div className="mx-4 mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--danger)" }} role="alert">
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--danger)" }} aria-hidden />
+        <div
+          className="mx-5 mt-3 flex items-start gap-2 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/8 px-3 py-2 text-xs text-[var(--ink)]"
+          role="alert"
+        >
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--danger)]" aria-hidden />
           <span>{error}</span>
         </div>
       )}
 
       {applications.length === 0 ? (
-        <p className="text-muted px-4 py-10 text-center text-sm">
-          No approved applications are waiting to be printed. Approve applications from
-          the review queue first.
-        </p>
+        <div className="px-6 py-16 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+            <Printer className="h-7 w-7" aria-hidden />
+          </div>
+          <p className="font-bold text-base text-[var(--ink)]">Nothing waiting to print</p>
+          <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
+            No approved applications are queued for printing. Approve applications from the review queue first.
+          </p>
+        </div>
       ) : (
         <div className="max-h-[52vh] overflow-y-auto overflow-x-auto">
           <table className="tbl">
-            <thead className="sticky top-0" style={{ background: "var(--card)" }}>
+            <thead className="sticky top-0" style={{ background: "var(--elevated)" }}>
               <tr>
                 <th className="w-10">
                   <span className="sr-only">Select</span>

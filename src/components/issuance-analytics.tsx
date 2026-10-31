@@ -2,8 +2,11 @@
 
 import {
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
+  ClipboardList,
   Clock3,
   Download,
   IdCard,
@@ -27,7 +30,6 @@ export type AnalyticsMonth = {
 type Props = {
   counts: Record<StatusKey | "total", number>;
   monthCount: number;
-  claimedPercent: number;
   year: number;
   earliestYear: number;
   currentYear: number;
@@ -52,9 +54,10 @@ const STATUS_ROWS: {
 const STACK_ORDER: StatusKey[] = ["claimed", "printed", "approved", "pending", "rejected"];
 const TABLE_ORDER: StatusKey[] = ["pending", "approved", "printed", "claimed", "rejected"];
 
-const CX = 90;
-const CY = 90;
-const R = 84;
+const GAUGE_R = 64;
+const GAUGE_STROKE = 18;
+const GAUGE_CIRC = 2 * Math.PI * GAUGE_R;
+const GAUGE_GAP = 5;
 const BASE = 190;
 const PLOT_H = 150;
 const PAD_L = 40;
@@ -69,7 +72,6 @@ const num = (n: number) => n.toLocaleString("en-US");
 export default function IssuanceAnalytics({
   counts,
   monthCount,
-  claimedPercent,
   year,
   earliestYear,
   currentYear,
@@ -77,6 +79,7 @@ export default function IssuanceAnalytics({
 }: Props) {
   const [activeStatus, setActiveStatus] = useState<StatusKey | null>(null);
   const [hovered, setHovered] = useState<number | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const chartWrap = useRef<HTMLDivElement>(null);
   const [chartW, setChartW] = useState(860);
 
@@ -113,31 +116,50 @@ export default function IssuanceAnalytics({
       cumulative,
       yearMax: Math.max(1, ...months.map((m) => m.total)),
       average: yearTotal / elapsed,
-      claimed: months.reduce((s, m) => s + m.byStatus.claimed, 0),
-      outstanding: months.reduce((s, m) => s + m.byStatus.pending + m.byStatus.approved, 0),
       byStatus: Object.fromEntries(
         STACK_ORDER.map((k) => [k, months.reduce((s, m) => s + m.byStatus[k], 0)]),
       ) as Record<StatusKey, number>,
     };
   }, [months]);
 
-  const pieSlices = useMemo(() => {
-    const active = STATUS_ROWS.filter(({ key }) => counts[key] > 0);
-    const point = (a: number) => `${(CX + R * Math.cos(a)).toFixed(2)} ${(CY + R * Math.sin(a)).toFixed(2)}`;
-    return active.map(({ key }, i) => {
-      const before = active.slice(0, i).reduce((s, r) => s + counts[r.key], 0);
-      const start = -Math.PI / 2 + (before / counts.total) * Math.PI * 2;
-      const sweep = (counts[key] / counts.total) * Math.PI * 2;
-      const end = start + sweep;
-      return {
-        key,
-        full: counts[key] === counts.total,
-        d: `M${CX} ${CY}L${point(start)}A${R} ${R} 0 ${sweep > Math.PI ? 1 : 0} 1 ${point(end - 0.0001)}Z`,
-      };
+  // Radial gauge like the dashboard progress rings: one ring, one arc segment
+  // per status, each sized by that status's share of all applications.
+  const gaugeSegments = useMemo(() => {
+    if (!counts.total) return [] as { key: StatusKey; dash: number; offset: number }[];
+    let cursor = 0;
+    return STATUS_ROWS.filter(({ key }) => counts[key] > 0).map(({ key }) => {
+      const length = (counts[key] / counts.total) * GAUGE_CIRC;
+      const segment = { key, dash: Math.max(length - GAUGE_GAP, 2), offset: -cursor };
+      cursor += length;
+      return segment;
     });
   }, [counts]);
 
   const needsAction = counts.pending + counts.approved;
+  const releasedThisYear = stats.byStatus.printed + stats.byStatus.claimed;
+  const inReviewThisYear = stats.byStatus.pending + stats.byStatus.approved;
+  const summary = [
+    {
+      label: "Released",
+      value: num(releasedThisYear),
+      hint: `${pct(releasedThisYear, stats.yearTotal)}% of ${year} submissions`,
+    },
+    {
+      label: "Awaiting collection",
+      value: num(stats.byStatus.printed),
+      hint: `${pct(stats.byStatus.printed, releasedThisYear)}% of released IDs`,
+    },
+    {
+      label: "Collected",
+      value: num(stats.byStatus.claimed),
+      hint: `${pct(stats.byStatus.claimed, releasedThisYear)}% of released IDs`,
+    },
+    {
+      label: "Still in review",
+      value: num(inReviewThisYear),
+      hint: `${pct(inReviewThisYear, stats.yearTotal)}% of ${year} submissions`,
+    },
+  ];
   const dim = (key: StatusKey) => (activeStatus && activeStatus !== key ? 0.2 : 1);
   const hoveredMonth = hovered !== null ? months[hovered] : null;
   const tooltipLeft = hovered !== null ? Math.min(86, Math.max(14, (cx(hovered) / chartW) * 100)) : 0;
@@ -161,44 +183,47 @@ export default function IssuanceAnalytics({
   }
 
   return (
-    <section className="card mb-6 overflow-hidden" aria-labelledby="issuance-title">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b px-5 py-4" style={{ borderColor: "var(--line)" }}>
-        <div>
-          <h2 id="issuance-title" className="text-sm font-bold">ID issuance overview</h2>
-          <p className="text-muted mt-1 text-xs">
-            <strong className="tabular-nums" style={{ color: "var(--ink)" }}>{counts.total}</strong> total applications
-            {" · "}{monthCount} received this month. Select a status to open its records.
-          </p>
-        </div>
-        <div className="text-right">
-          <span className="text-muted block text-[11px] font-semibold uppercase tracking-wide">Cards collected</span>
-          <span className="text-xl font-extrabold tabular-nums">{claimedPercent}%</span>
-        </div>
+    <>
+      <section className="card relative" aria-labelledby="issuance-title">
+      <div className="border-b px-5 py-4" style={{ borderColor: "var(--line)" }}>
+        <h2 id="issuance-title" className="text-sm font-bold">ID issuance overview</h2>
+        <p className="text-muted mt-1 text-xs">
+          <strong className="tabular-nums" style={{ color: "var(--ink)" }}>{counts.total}</strong> applications on record
+          {" · "}<strong className="tabular-nums" style={{ color: "var(--ink)" }}>{monthCount}</strong> received this month.
+        </p>
       </div>
 
-      {needsAction > 0 && (
-        <div className="ax-action-banner" role="status">
-          <TriangleAlert className="h-5 w-5 shrink-0" aria-hidden />
-          <p className="min-w-0 flex-1 text-xs leading-snug">
-            <strong className="text-sm">Action needed</strong>
-            <span className="block sm:inline sm:before:content-['_·_']">
-              {counts.pending > 0 && <>{counts.pending} awaiting review</>}
-              {counts.pending > 0 && counts.approved > 0 && " and "}
-              {counts.approved > 0 && <>{counts.approved} approved and ready to print</>}.
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {counts.pending > 0 && (
-              <Link href="/admin/applications?status=pending" className="btn btn-sm ax-action-btn">Review pending</Link>
-            )}
-            {counts.approved > 0 && (
-              <Link href="/admin/print" className="btn btn-sm ax-action-btn">Go to batch print</Link>
-            )}
-          </div>
-        </div>
-      )}
+      <div
+        className={`px-5 py-4 ${detailsOpen ? "border-b" : ""}`}
+        style={{ borderColor: "var(--line)" }}
+      >
+        <h3 className="text-muted flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide">
+          <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+            <ClipboardList className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          Issuance summary · {year}
+        </h3>
 
-      <div className="p-5">
+        <dl className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {summary.map((item) => (
+            <div key={item.label} className="ax-stat">
+              <dt className="ax-stat-label">{item.label}</dt>
+              <dd className="ax-stat-value">
+                {item.value}
+                <span className="ax-stat-hint">{item.hint}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div
+        id="issuance-details"
+        className={`grid transition-all duration-300 ease-out ${detailsOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
+        aria-hidden={!detailsOpen}
+      >
+        <div className="overflow-hidden">
+          <div className="p-5">
         <div className="grid items-center gap-6 md:grid-cols-[minmax(180px,0.75fr)_minmax(0,1.5fr)]">
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs font-semibold">Application status distribution</p>
@@ -209,28 +234,48 @@ export default function IssuanceAnalytics({
               aria-label={`Status distribution: ${STATUS_ROWS.map((s) => `${s.label} ${counts[s.key]}`).join(", ")}`}
               style={{ color: "var(--ink)" }}
             >
-              {counts.total === 0 ? (
-                <circle cx={CX} cy={CY} r={R} fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.5" />
-              ) : (
-                pieSlices.map(({ key, d, full }) =>
-                  full ? (
-                    <circle key={key} cx={CX} cy={CY} r={R} style={{ fill: `var(--st-${key})` }} stroke="var(--card)" strokeWidth="2" />
-                  ) : (
-                    <path
-                      key={key}
-                      d={d}
-                      style={{ fill: `var(--st-${key})`, opacity: dim(key), transition: "opacity .15s" }}
-                      stroke="var(--card)"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                      onMouseEnter={() => setActiveStatus(key)}
-                      onMouseLeave={() => setActiveStatus(null)}
-                    >
-                      <title>{`${STATUS_LABELS[key]}: ${counts[key]} (${pct(counts[key], counts.total)}%)`}</title>
-                    </path>
-                  ),
-                )
-              )}
+              <g transform="rotate(-90 90 90)">
+                {counts.total === 0 ? (
+                  <circle cx="90" cy="90" r={GAUGE_R} fill="none" stroke="currentColor" strokeWidth={GAUGE_STROKE} strokeDasharray="4 7" opacity="0.35" />
+                ) : (
+                  <>
+                    <circle cx="90" cy="90" r={GAUGE_R} fill="none" stroke="var(--line)" strokeWidth={GAUGE_STROKE} />
+                    {gaugeSegments.map(({ key, dash, offset }) => (
+                      <circle
+                        key={key}
+                        cx="90"
+                        cy="90"
+                        r={GAUGE_R}
+                        fill="none"
+                        stroke={`var(--st-${key})`}
+                        strokeWidth={GAUGE_STROKE}
+                        strokeDasharray={`${dash} ${GAUGE_CIRC - dash}`}
+                        strokeDashoffset={offset}
+                        opacity={dim(key)}
+                        style={{ transition: "opacity .15s" }}
+                        onMouseEnter={() => setActiveStatus(key)}
+                        onMouseLeave={() => setActiveStatus(null)}
+                      >
+                        <title>{`${STATUS_LABELS[key]}: ${counts[key]} (${pct(counts[key], counts.total)}%)`}</title>
+                      </circle>
+                    ))}
+                  </>
+                )}
+              </g>
+              <text
+                x="90"
+                y="85"
+                textAnchor="middle"
+                fontSize="30"
+                fontWeight="800"
+                fill="currentColor"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {num(counts.total)}
+              </text>
+              <text x="90" y="103" textAnchor="middle" fontSize="9.5" fontWeight="700" fill="currentColor" opacity="0.6" letterSpacing="1.2">
+                APPLICATIONS
+              </text>
             </svg>
           </div>
           <div className="divide-y" style={{ borderColor: "var(--line)" }}>
@@ -296,12 +341,11 @@ export default function IssuanceAnalytics({
           </nav>
         </div>
 
-        <dl className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <dl className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
           {[
             { label: "Received this year", value: num(stats.yearTotal) },
             { label: "Monthly average", value: stats.average.toLocaleString("en-US", { maximumFractionDigits: 1 }) },
             { label: "Busiest month", value: stats.peakIndex >= 0 ? `${monthName(stats.peakIndex)} (${months[stats.peakIndex].total})` : "None" },
-            { label: "Still to process", value: num(stats.outstanding) },
           ].map((item) => (
             <div key={item.label} className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--line)" }}>
               <dt className="text-muted text-[11px] font-semibold uppercase tracking-wide">{item.label}</dt>
@@ -463,7 +507,6 @@ export default function IssuanceAnalytics({
                 <svg width="20" height="8" aria-hidden><line x1="0" y1="4" x2="20" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
                 Running total (right scale)
               </span>
-              <span>{stats.claimed} of {stats.yearTotal} applications from {year} have been claimed.</span>
             </p>
 
             <details className="ax-details mt-3">
@@ -535,6 +578,26 @@ export default function IssuanceAnalytics({
           </>
         )}
       </div>
+        </div>
+      </div>
+
+      {/* Waterdrop toggle: notched into the bottom edge of the card. */}
+      <div className="ax-drop-bar">
+        <button
+          type="button"
+          className="ax-drop"
+          onClick={() => setDetailsOpen((value) => !value)}
+          aria-expanded={detailsOpen}
+          aria-controls="issuance-details"
+          aria-label={detailsOpen ? `Hide ${year} issuance details` : `Show ${year} issuance details`}
+          title={detailsOpen ? "Hide details" : "View details"}
+        >
+          <span key={detailsOpen ? "up" : "down"} className="ax-drop-icon">
+            {detailsOpen ? <ChevronUp className="h-4 w-4" aria-hidden /> : <ChevronDown className="h-4 w-4" aria-hidden />}
+          </span>
+        </button>
+      </div>
     </section>
+  </>
   );
 }

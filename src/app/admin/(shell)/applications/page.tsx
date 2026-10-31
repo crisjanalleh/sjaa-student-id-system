@@ -133,7 +133,7 @@ export default async function ApplicationsPage({
           </div>
 
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--academic-blue)]" />
+            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
             {Number(total)} Application{Number(total) === 1 ? "" : "s"}
           </div>
         </div>

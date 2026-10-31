@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   ChevronDown,
@@ -52,7 +52,6 @@ export default function QrManager({
   dateOrder,
   page,
   totalPages,
-  total,
   school,
 }: {
   tokens: TokenRow[];
@@ -60,7 +59,6 @@ export default function QrManager({
   dateOrder: "newest" | "oldest";
   page: number;
   totalPages: number;
-  total: number;
   school: { name: string; address: string; motto: string };
 }) {
   const router = useRouter();
@@ -264,12 +262,14 @@ export default function QrManager({
       <div className="flex flex-col gap-5 lg:col-span-3">
         {/* Create form */}
         <section className="card p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold">
-            <QrCode className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
+          <h2 className="mb-4 flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+              <QrCode className="h-3.5 w-3.5" aria-hidden />
+            </span>
             New Access Token
           </h2>
           {error && (
-            <div className="mb-3 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--danger)", color: "var(--danger)" }} role="alert">
+            <div className="mb-3 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/8 px-3 py-2 text-xs text-[var(--ink)]" role="alert">
               {error}
             </div>
           )}
@@ -311,8 +311,10 @@ export default function QrManager({
         {/* Authenticated token link and QR display */}
         {issued && (
           <section className="card p-5" style={{ borderColor: "var(--accent-gold)" }}>
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold">
-              <ShieldAlert className="h-4 w-4" style={{ color: "var(--accent-gold)" }} aria-hidden />
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--accent-gold)]/16 text-[var(--accent-gold)]">
+                <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+              </span>
               {issued.recovered ? "Active QR Link" : "New QR Issued"}
             </h2>
             <p className="text-muted mb-4 text-xs leading-relaxed">
@@ -424,21 +426,32 @@ export default function QrManager({
       )}
 
       {/* Token registry */}
-      <ListCard className="card h-fit lg:col-span-9">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
-          <h2 className="text-sm font-bold">Token Registry</h2>
+      <ListCard className="card h-fit overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm lg:col-span-9">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+              <ShieldAlert className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            Token Registry
+          </h2>
           <ListLink
             href={`/admin/qr?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`}
-            className="text-xs font-semibold no-underline"
-            style={{ color: "var(--academic-blue)" }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3 py-1 text-xs font-semibold text-[var(--ink)] no-underline transition-colors hover:border-[var(--academic-blue)]"
           >
-            {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
+            {dateOrder === "newest" ? "Newest first" : "Oldest first"}
+            <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
           </ListLink>
         </div>
         {tokens.length === 0 ? (
-          <p className="text-muted px-4 py-8 text-center text-sm">
-            No access tokens yet. Generate one to open the public application form.
-          </p>
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+              <QrCode className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="font-bold text-base text-[var(--ink)]">No access tokens yet</p>
+            <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
+              Generate one to open the public application form and share it as a QR code.
+            </p>
+          </div>
         ) : (
           <div className="table-scroll">
             <table className="tbl qr-token-table">
@@ -530,9 +543,9 @@ export default function QrManager({
           params={{ dateOrder }}
           page={page}
           totalPages={totalPages}
-          summary={total === 0 ? "No records" : `Showing ${(page - 1) * ADMIN_PAGE_SIZE + 1}–${Math.min(total, page * ADMIN_PAGE_SIZE)} of ${total} · ${ADMIN_PAGE_SIZE} per page`}
+          summary={`${ADMIN_PAGE_SIZE} per page`}
         />
-        <p className="text-muted border-t px-4 py-3 text-[11px] leading-relaxed" style={{ borderColor: "var(--line)" }}>
+        <p className="text-muted border-t border-[var(--line)] bg-[var(--card)]/40 px-5 py-3 text-[11px] leading-relaxed">
           A QR token is a bearer credential: anyone holding a valid, unexpired,
           unrevoked token can open the application form. Tokens grant access to the
           form only — never to submitted records — and contain no student data. Previously created tokens that cannot be recovered must be regenerated before they can be viewed or shared.

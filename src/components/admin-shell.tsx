@@ -95,6 +95,7 @@ export default function AdminShell({
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsed, () => false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -122,6 +123,15 @@ export default function AdminShell({
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [drawerOpen]);
+
+  useEffect(() => {
+    if (!signOutOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !loggingOut) setSignOutOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [signOutOpen, loggingOut]);
 
   // Opening a section marks it read; while it stays open, new arrivals refresh the page and are marked read too.
   useEffect(() => {
@@ -162,7 +172,7 @@ export default function AdminShell({
   }, [activeSection, csrfToken, router]);
 
   async function logout() {
-    if (loggingOut || !window.confirm("Are you sure you want to sign out of the administration workspace?")) return;
+    if (loggingOut) return;
     setLoggingOut(true);
     setLogoutError("");
     try {
@@ -174,6 +184,7 @@ export default function AdminShell({
         setLogoutError("Could not sign out. Please try again.");
         return;
       }
+      setSignOutOpen(false);
       router.replace("/admin/login");
       router.refresh();
     } catch {
@@ -314,7 +325,10 @@ export default function AdminShell({
           <button
             type="button"
             className="btn-signout sb-signout group"
-            onClick={logout}
+            onClick={() => {
+              setLogoutError("");
+              setSignOutOpen(true);
+            }}
             disabled={loggingOut}
             title={collapsed ? "Sign out" : undefined}
             aria-label="Sign out"
@@ -326,7 +340,7 @@ export default function AdminShell({
             )}
             <span className="sb-label">{loggingOut ? "Signing out…" : "Sign out"}</span>
           </button>
-          {logoutError && (
+          {logoutError && !signOutOpen && (
             <p className="mt-2 text-xs" style={{ color: "var(--danger)" }} role="alert">
               {logoutError}
             </p>
@@ -347,6 +361,58 @@ export default function AdminShell({
         </footer>
       </div>
       <PrintProgressDock />
+
+      {signOutOpen && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="signout-title"
+          onClick={() => {
+            if (!loggingOut) setSignOutOpen(false);
+          }}
+        >
+          <div className="modal-panel p-5" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: "var(--field-bg)", color: "var(--danger)" }}
+                aria-hidden
+              >
+                <LogOut className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <h2 id="signout-title" className="text-sm font-bold">
+                  Sign out
+                </h2>
+                <p className="text-muted mt-1 text-xs leading-relaxed">
+                  Are you sure you want to sign out of the administration workspace? You will need to enter your
+                  credentials again to continue.
+                </p>
+              </div>
+            </div>
+            {logoutError && (
+              <p className="mt-3 text-xs" style={{ color: "var(--danger)" }} role="alert">
+                {logoutError}
+              </p>
+            )}
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setSignOutOpen(false)}
+                disabled={loggingOut}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={logout} disabled={loggingOut}>
+                {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <LogOut className="h-4 w-4" aria-hidden />}
+                Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

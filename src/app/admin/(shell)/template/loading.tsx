@@ -3,13 +3,15 @@ import { SkeletonCardPreview, SkeletonFormCard, SkeletonHeader, SkeletonPage } f
 export default function Loading() {
   return (
     <SkeletonPage label="Loading ID template…">
-      <SkeletonHeader buttons={2} />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-5">
-          <SkeletonFormCard fields={4} button={false} />
-          <SkeletonFormCard fields={3} button />
+      <SkeletonHeader buttons={1} />
+      <div className="grid gap-5 lg:grid-cols-5">
+        <div className="lg:col-span-2">
+          <SkeletonFormCard fields={6} button />
         </div>
-        <SkeletonCardPreview />
+        <div className="grid gap-5 lg:col-span-3 2xl:grid-cols-2">
+          <SkeletonCardPreview />
+          <SkeletonCardPreview />
+        </div>
       </div>
     </SkeletonPage>
   );

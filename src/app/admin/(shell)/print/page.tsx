@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, isNull, notExists, sql } from "drizzle-orm";
-import { CalendarClock, Printer } from "lucide-react";
+import { CalendarClock, ChevronRight, Printer } from "lucide-react";
 import QuickTip from "@/components/quick-tip";
 import Link from "next/link";
 import { db } from "@/db";
@@ -74,19 +74,38 @@ export default async function PrintSelectPage({
   }));
 
   return (
-    <div>
-      <div className="page-head-stack">
-        <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <Printer className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Batch Printing
-        </h1>
-        <p className="text-muted text-sm">
-          Select approved applications, confirm the batch, and print CR80 ID cards. A
-          batch records the template version used — for example at the end of each
-          month — and each record can be printed exactly once.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Breadcrumb & Page Head */}
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
+          <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="text-[var(--ink)] font-semibold">Batch Print</span>
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div className="min-w-0 flex-1">
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] ring-1 ring-[var(--academic-blue)]/20 shadow-xs">
+                <Printer className="h-5 w-5" aria-hidden />
+              </span>
+              Batch Printing
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              Select approved applications, confirm the batch, and print CR80 ID cards. A batch records the template version used — for example at the end of each month — and each record can be printed exactly once.
+            </p>
+          </div>
+
+          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
+            {Number(totalApproved)} Ready to Print
+          </div>
+        </div>
+
         <QuickTip
-          className="mt-3"
+          className="mt-1"
           items={[
             "Tick only approved applications you are ready to print now.",
             "Each record can be printed once, and the batch stores the template version used.",
@@ -94,31 +113,32 @@ export default async function PrintSelectPage({
         />
       </div>
 
-      <ListCard className="">
-        <PrintSelect key={page} applications={serialized} csrfToken={ctx!.csrfToken} />
-        {Number(totalApproved) > 0 && (
-          <Pager
-            basePath="/admin/print"
-            params={{ dateOrder }}
-            page={page}
-            totalPages={totalPages}
-            summary={`Showing ${Math.min(Number(totalApproved), (page - 1) * PAGE_SIZE + 1)}–${Math.min(Number(totalApproved), page * PAGE_SIZE)} of ${Number(totalApproved)} approved · ${PAGE_SIZE} per page`}
-          />
-        )}
-      </ListCard>
-
-      <ListCard className="card mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
-        <h2 className="flex items-center gap-2 text-sm font-bold">
-          <CalendarClock className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Recent Batches
-        </h2>
-        <ListLink href={`/admin/print?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`} className="text-xs font-semibold no-underline" style={{ color: "var(--academic-blue)" }}>
-          {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
-        </ListLink>
+      <ListCard className="card overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            Recent Batches
+          </h2>
+          <ListLink
+            href={`/admin/print?dateOrder=${dateOrder === "newest" ? "oldest" : "newest"}`}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3 py-1 text-xs font-semibold text-[var(--ink)] no-underline transition-colors hover:border-[var(--academic-blue)]"
+          >
+            {dateOrder === "newest" ? "Newest first" : "Oldest first"}
+            <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
+          </ListLink>
         </div>
         {recentBatches.length === 0 ? (
-          <p className="text-muted px-4 py-6 text-center text-sm">No print batches yet.</p>
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+              <CalendarClock className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="font-bold text-base text-[var(--ink)]">No print batches yet</p>
+            <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
+              Batches you create appear here with their template version and print progress.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="tbl">
@@ -158,6 +178,19 @@ export default async function PrintSelectPage({
               </tbody>
             </table>
           </div>
+        )}
+      </ListCard>
+
+      <ListCard className="card overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm">
+        <PrintSelect key={page} applications={serialized} csrfToken={ctx!.csrfToken} />
+        {Number(totalApproved) > 0 && (
+          <Pager
+            basePath="/admin/print"
+            params={{ dateOrder }}
+            page={page}
+            totalPages={totalPages}
+            summary={`${PAGE_SIZE} per page`}
+          />
         )}
       </ListCard>
     </div>

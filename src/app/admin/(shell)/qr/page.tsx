@@ -1,5 +1,6 @@
 import { asc, desc, sql } from "drizzle-orm";
-import { QrCode } from "lucide-react";
+import { ChevronRight, QrCode } from "lucide-react";
+import Link from "next/link";
 import { db } from "@/db";
 import { applicationAccessTokens } from "@/db/schema";
 import { getAdminContext } from "@/lib/auth";
@@ -43,18 +44,38 @@ export default async function QrPage({
   }));
 
   return (
-    <div>
-      <div className="page-head-stack">
-        <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <QrCode className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Application QR Codes
-        </h1>
-        <p className="text-muted text-sm">
-          Generate revocable, time-limited access tokens for the public application form
-          and export them as high-resolution QR codes.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Breadcrumb & Page Head */}
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
+          <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="text-[var(--ink)] font-semibold">QR Codes</span>
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] ring-1 ring-[var(--academic-blue)]/20 shadow-xs">
+                <QrCode className="h-5 w-5" aria-hidden />
+              </span>
+              Application QR Codes
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              Generate revocable, time-limited access tokens for the public application form and export them as high-resolution QR codes.
+            </p>
+          </div>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
+            {Number(total)} Code{Number(total) === 1 ? "" : "s"}
+          </div>
+        </div>
       </div>
-      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} total={Number(total)} school={{ name: SCHOOL.name, address: SCHOOL.address, motto: SCHOOL.motto }} />
+
+      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} school={{ name: SCHOOL.name, address: SCHOOL.address, motto: SCHOOL.motto }} />
     </div>
   );
 }

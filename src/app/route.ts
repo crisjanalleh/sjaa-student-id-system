@@ -19,7 +19,9 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const raw = url.searchParams.get("access_token") || "";
 
-  if (!raw) return redirectTo("/apply");
+  // No token: locally this is the admin entry point; through the public
+  // tunnel it stays the student form so shared links keep working.
+  if (!raw) return redirectTo(isTunneledRequest(req.headers) ? "/apply" : "/admin");
 
   const tokenRow = await validateAccessToken(raw);
   if (!tokenRow) return redirectTo("/apply?error=invalid");

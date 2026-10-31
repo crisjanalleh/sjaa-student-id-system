@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, ChevronRight, Filter, Search, Tag, X } from "lucide-react";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
@@ -79,29 +79,55 @@ export default async function NotificationsPage({
     return s ? `?${s}` : "";
   };
 
+  const hasFilters = Boolean(status || type);
+
   return (
-    <div>
-      <div className="page-head-stack">
-        <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <Bell className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Notification Log
-        </h1>
-        <p className="text-muted text-sm">
-          Every email event is recorded. Failures stay visible here until delivered —
-          nothing is silently dropped.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Breadcrumb & Page Head */}
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
+          <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="text-[var(--ink)] font-semibold">Notification Log</span>
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] ring-1 ring-[var(--academic-blue)]/20 shadow-xs">
+                <Bell className="h-5 w-5" aria-hidden />
+              </span>
+              Notification Log
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              Every email event is recorded. Failures stay visible here until delivered — nothing is silently dropped.
+            </p>
+          </div>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
+            {Number(total)} Notification{Number(total) === 1 ? "" : "s"}
+          </div>
+        </div>
       </div>
 
-      <ListCard>
-        <FilterForm key={`${status}|${type}`} action="/admin/notifications" className="border-b px-5 py-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--bg) 45%, var(--card))" }}>
-          <div className="mb-3">
-            <h2 className="text-xs font-bold">Find notifications</h2>
-            <p className="text-muted mt-1 text-xs">Narrow the log by delivery status or email purpose.</p>
-          </div>
+      {/* Notification Log Card */}
+      <ListCard className="card overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm">
+        {/* Filters Header Bar */}
+        <FilterForm
+          key={`${status}|${type}`}
+          action="/admin/notifications"
+          className="border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-4"
+        >
           <input type="hidden" name="dateOrder" value={dateOrder} />
-          <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(180px,220px)_minmax(220px,1fr)_auto]">
-            <div>
-              <label className="lbl" htmlFor="n_status">Delivery status</label>
+          <div className="grid items-end gap-3.5 sm:grid-cols-2 lg:grid-cols-[minmax(200px,240px)_minmax(220px,1fr)_auto]">
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="n_status">
+                <Filter className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Delivery Status</span>
+              </label>
               <SelectField id="n_status" name="status" className="inp w-full" defaultValue={status}>
                 <option value="">All statuses</option>
                 {STATUSES.map((s) => (
@@ -109,28 +135,41 @@ export default async function NotificationsPage({
                 ))}
               </SelectField>
             </div>
-            <div>
-              <label className="lbl" htmlFor="n_type">Email purpose</label>
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="n_type">
+                <Tag className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Email Purpose</span>
+              </label>
               <SelectField id="n_type" name="type" className="inp w-full" defaultValue={type}>
                 <option value="">All email types</option>
                 <option value="rejection_notice">Application decision notice</option>
                 <option value="ready_for_claiming">ID ready for collection</option>
               </SelectField>
             </div>
-            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-1">
-              <FilterSubmit>Apply filters</FilterSubmit>
-              {(status || type) && (
-                <ListLink href="/admin/notifications" className="btn btn-outline">Clear</ListLink>
+            <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2 lg:col-span-1">
+              <FilterSubmit>
+                <Search className="h-4 w-4" aria-hidden /> Filter
+              </FilterSubmit>
+              {hasFilters && (
+                <ListLink href="/admin/notifications" className="btn btn-ghost btn-sm gap-1 text-xs">
+                  <X className="h-3.5 w-3.5" aria-hidden /> Clear
+                </ListLink>
               )}
             </div>
           </div>
         </FilterForm>
 
         {rows.length === 0 ? (
-          <div className="px-4 py-14 text-center">
-            <BellOff className="mx-auto mb-3 h-10 w-10" style={{ color: "var(--muted)" }} aria-hidden />
-            <p className="font-semibold">No notifications match</p>
-            <p className="text-muted mt-1 text-sm">Email events appear here as applications move through the workflow.</p>
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+              <BellOff className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="font-bold text-base text-[var(--ink)]">No notifications found</p>
+            <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
+              {hasFilters
+                ? "No email events matched your filter criteria. Try adjusting the filters or clearing them."
+                : "Email events appear here as applications move through the workflow."}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -142,12 +181,13 @@ export default async function NotificationsPage({
                   <th>Recipient</th>
                   <th>Status</th>
                   <th>Detail</th>
-                  <th>
+                  <th aria-sort={dateOrder === "newest" ? "descending" : "ascending"}>
                     <ListLink
                       href={`/admin/notifications${qs({ dateOrder: dateOrder === "newest" ? "oldest" : "newest" })}`}
-                      className="inline-flex items-center gap-1 no-underline"
+                      className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
-                      Created {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
+                      Created
+                      <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
                     </ListLink>
                   </th>
                   <th className="!text-right">Action</th>
@@ -158,11 +198,11 @@ export default async function NotificationsPage({
                   <tr key={log.id}>
                     <td className="font-mono text-xs font-bold">
                       {app ? (
-                        <Link href={`/admin/applications/${app.id}`} className="underline underline-offset-2" style={{ color: "var(--academic-blue)" }}>
+                        <Link href={`/admin/applications/${app.id}`} className="text-[var(--academic-blue)] transition-colors hover:underline">
                           {app.applicationCode}
                         </Link>
                       ) : (
-                        "—"
+                        <span className="text-muted">—</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap text-xs font-semibold">
@@ -213,7 +253,7 @@ export default async function NotificationsPage({
           params={{ status, type, dateOrder }}
           page={safePage}
           totalPages={totalPages}
-          summary={`${Number(total)} entr${Number(total) === 1 ? "y" : "ies"} · ${PAGE_SIZE} per page`}
+          summary={`${PAGE_SIZE} per page`}
         />
       </ListCard>
     </div>

@@ -1,12 +1,12 @@
 import { and, asc, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
-import { ScrollText } from "lucide-react";
+import { CalendarDays, ChevronRight, Filter, ScrollText, Search, Tag, X } from "lucide-react";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
 import { db } from "@/db";
 import { adminUsers, auditLogs } from "@/db/schema";
 import { AUDIT_ACTIONS } from "@/lib/audit";
-import { auditActionLabel, auditActionStyle, auditDetails } from "@/lib/audit-presentation";
+import { auditActionLabel, auditActionTone, auditDetails } from "@/lib/audit-presentation";
 import { formatDateTime } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 
@@ -83,29 +83,55 @@ export default async function AuditLogsPage({
     return s ? `?${s}` : "";
   };
 
+  const hasFilters = Boolean(action || entity || from || to);
+
   return (
-    <div>
-      <div className="page-head-stack">
-        <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <ScrollText className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Audit Logs
-        </h1>
-        <p className="text-muted text-sm">
-          A read-only history of important system and administrator activity. Use the filters
-          to find a specific activity, record type, or date range.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Breadcrumb & Page Head */}
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
+          <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="text-[var(--ink)] font-semibold">Audit Logs</span>
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] ring-1 ring-[var(--academic-blue)]/20 shadow-xs">
+                <ScrollText className="h-5 w-5" aria-hidden />
+              </span>
+              Audit Logs
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              A read-only history of important system and administrator activity.
+            </p>
+          </div>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
+            {Number(total)} Event{Number(total) === 1 ? "" : "s"}
+          </div>
+        </div>
       </div>
 
-      <ListCard>
-        <FilterForm key={`${action}|${entity}|${from}|${to}`} action="/admin/audit" className="border-b px-5 py-4" style={{ borderColor: "var(--line)", background: "color-mix(in srgb, var(--bg) 45%, var(--card))" }}>
-          <div className="mb-3">
-            <h2 className="text-xs font-bold">Find an activity</h2>
-            <p className="text-muted mt-1 text-xs">Choose what you are looking for, then narrow it by record type or date.</p>
-          </div>
+      {/* Activity Log Card */}
+      <ListCard className="card overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm">
+        {/* Filters Header Bar */}
+        <FilterForm
+          key={`${action}|${entity}|${from}|${to}`}
+          action="/admin/audit"
+          className="border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-4"
+        >
           <input type="hidden" name="dateOrder" value={dateOrder} />
-          <div className="grid items-end gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(190px,1fr)_minmax(145px,0.8fr)_minmax(145px,0.8fr)_auto]">
-            <div>
-              <label className="lbl" htmlFor="a_action">Activity</label>
+          <div className="grid items-end gap-3.5 sm:grid-cols-2 xl:grid-cols-[minmax(190px,1fr)_minmax(190px,1fr)_minmax(150px,0.8fr)_minmax(150px,0.8fr)_auto]">
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="a_action">
+                <Filter className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Activity</span>
+              </label>
               <SelectField id="a_action" name="action" className="inp w-full" defaultValue={action}>
                 <option value="">All activities</option>
                 {AUDIT_ACTIONS.map((a) => (
@@ -113,8 +139,11 @@ export default async function AuditLogsPage({
                 ))}
               </SelectField>
             </div>
-            <div>
-              <label className="lbl" htmlFor="a_entity">Record type</label>
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="a_entity">
+                <Tag className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Record Type</span>
+              </label>
               <SelectField id="a_entity" name="entity" className="inp w-full" defaultValue={entity}>
                 <option value="">All record types</option>
                 {entityTypes.map((type) => (
@@ -122,41 +151,62 @@ export default async function AuditLogsPage({
                 ))}
               </SelectField>
             </div>
-            <div>
-              <label className="lbl" htmlFor="a_from">Start date</label>
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="a_from">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Start Date</span>
+              </label>
               <input id="a_from" name="from" type="date" className="inp w-full" defaultValue={from} />
             </div>
-            <div>
-              <label className="lbl" htmlFor="a_to">End date</label>
+            <div className="space-y-1">
+              <label className="lbl" htmlFor="a_to">
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>End Date</span>
+              </label>
               <input id="a_to" name="to" type="date" className="inp w-full" defaultValue={to} />
             </div>
-            <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1">
-              <FilterSubmit>Apply filters</FilterSubmit>
-              {(action || entity || from || to) && (
-                <ListLink href="/admin/audit" className="btn btn-outline">Clear</ListLink>
+            <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2 xl:col-span-1">
+              <FilterSubmit>
+                <Search className="h-4 w-4" aria-hidden /> Filter
+              </FilterSubmit>
+              {hasFilters && (
+                <ListLink href="/admin/audit" className="btn btn-ghost btn-sm gap-1 text-xs">
+                  <X className="h-3.5 w-3.5" aria-hidden /> Clear
+                </ListLink>
               )}
             </div>
           </div>
         </FilterForm>
 
         {rows.length === 0 ? (
-          <p className="text-muted px-4 py-14 text-center text-sm">No audit entries match the current filters.</p>
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+              <ScrollText className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="font-bold text-base text-[var(--ink)]">No audit entries found</p>
+            <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
+              {hasFilters
+                ? "No activity matched your filter criteria. Try adjusting the filters or clearing them."
+                : "System and administrator activity will be recorded here as it happens."}
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>
+                  <th aria-sort={dateOrder === "newest" ? "descending" : "ascending"}>
                     <ListLink
                       href={`/admin/audit${qs({ dateOrder: dateOrder === "newest" ? "oldest" : "newest" })}`}
-                      className="inline-flex items-center gap-1 no-underline"
+                      className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
-                      Timestamp {dateOrder === "newest" ? "↓ Newest first" : "↑ Oldest first"}
+                      Timestamp
+                      <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
                     </ListLink>
                   </th>
                   <th>Actor</th>
                   <th>Activity</th>
-                  <th>Record affected</th>
+                  <th>Record Affected</th>
                   <th>Details</th>
                 </tr>
               </thead>
@@ -168,17 +218,9 @@ export default async function AuditLogsPage({
                       {admin ? admin.fullName : <span className="text-muted">System or public user</span>}
                     </td>
                     <td>
-                      {(() => {
-                        const style = auditActionStyle(log.action);
-                        return (
-                          <span
-                            className="badge !normal-case"
-                            style={{ color: style.color, background: style.background, borderColor: style.border }}
-                          >
-                            {style.label}
-                          </span>
-                        );
-                      })()}
+                      <span className={`badge badge-${auditActionTone(log.action)} !normal-case`}>
+                        {auditActionLabel(log.action)}
+                      </span>
                     </td>
                     <td className="text-muted whitespace-nowrap text-xs">
                       {log.entityType
@@ -200,7 +242,7 @@ export default async function AuditLogsPage({
           params={{ action, entity, from, to, dateOrder }}
           page={safePage}
           totalPages={totalPages}
-          summary={`${Number(total)} entr${Number(total) === 1 ? "y" : "ies"} · ${PAGE_SIZE} per page`}
+          summary={`${PAGE_SIZE} per page`}
         />
       </ListCard>
     </div>

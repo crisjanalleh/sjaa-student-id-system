@@ -1,35 +1,37 @@
+export type AuditTone = "approved" | "pending" | "rejected" | "printed" | "claimed" | "neutral";
+
 type AuditPresentation = {
   label: string;
-  color: string;
-  background: string;
-  border: string;
+  tone: AuditTone;
 };
 
+// Tones map onto the theme-aware semantic badge classes (see globals.css),
+// so activity colours stay muted and legible in every light/dark theme.
 const PRESENTATION: Record<string, AuditPresentation> = {
-  "admin.setup_completed": { label: "Administrator setup completed", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
-  "admin.school_location_updated": { label: "School location updated", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
-  "admin.profile_updated": { label: "Administrator profile updated", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
-  "auth.login_success": { label: "Signed in", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
-  "auth.login_failed": { label: "Sign-in failed", color: "#991b1b", background: "#fee2e2", border: "#fecaca" },
-  "auth.logout": { label: "Signed out", color: "#475569", background: "#f1f5f9", border: "#cbd5e1" },
-  "auth.session_expired": { label: "Session expired", color: "#92400e", background: "#fef3c7", border: "#fde68a" },
-  "token.created": { label: "Application link created", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
-  "token.revoked": { label: "Application link deactivated", color: "#9f1239", background: "#ffe4e6", border: "#fecdd3" },
-  "token.regenerated": { label: "Application link renewed", color: "#6b21a8", background: "#f3e8ff", border: "#e9d5ff" },
-  "token.revealed": { label: "Application link viewed", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
-  "application.submitted": { label: "Application submitted", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
-  "application.edited": { label: "Application details updated", color: "#4338ca", background: "#e0e7ff", border: "#c7d2fe" },
-  "application.approved": { label: "Application approved", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
-  "application.rejected": { label: "Application not approved", color: "#991b1b", background: "#fee2e2", border: "#fecaca" },
-  "application.photo_replaced": { label: "Student photo replaced", color: "#7e22ce", background: "#f3e8ff", border: "#e9d5ff" },
-  "application.deleted": { label: "Application archived", color: "#9f1239", background: "#ffe4e6", border: "#fecdd3" },
-  "application.claimed": { label: "ID card claimed", color: "#0f766e", background: "#ccfbf1", border: "#99f6e4" },
-  "template.updated": { label: "ID card design updated", color: "#6b21a8", background: "#f3e8ff", border: "#e9d5ff" },
-  "batch.created": { label: "ID print batch created", color: "#1e40af", background: "#dbeafe", border: "#bfdbfe" },
-  "batch.printed": { label: "ID cards printed and ready", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
-  "notification.queued": { label: "Email notification queued", color: "#92400e", background: "#fef3c7", border: "#fde68a" },
-  "notification.retried": { label: "Email notification retried", color: "#0e7490", background: "#cffafe", border: "#a5f3fc" },
-  "notification.acknowledged": { label: "Email receipt acknowledged", color: "#166534", background: "#dcfce7", border: "#bbf7d0" },
+  "admin.setup_completed": { label: "Administrator setup completed", tone: "claimed" },
+  "admin.school_location_updated": { label: "School location updated", tone: "approved" },
+  "admin.profile_updated": { label: "Administrator profile updated", tone: "approved" },
+  "auth.login_success": { label: "Signed in", tone: "claimed" },
+  "auth.login_failed": { label: "Sign-in failed", tone: "rejected" },
+  "auth.logout": { label: "Signed out", tone: "neutral" },
+  "auth.session_expired": { label: "Session expired", tone: "pending" },
+  "token.created": { label: "Application link created", tone: "approved" },
+  "token.revoked": { label: "Application link deactivated", tone: "rejected" },
+  "token.regenerated": { label: "Application link renewed", tone: "printed" },
+  "token.revealed": { label: "Application link viewed", tone: "approved" },
+  "application.submitted": { label: "Application submitted", tone: "approved" },
+  "application.edited": { label: "Application details updated", tone: "printed" },
+  "application.approved": { label: "Application approved", tone: "claimed" },
+  "application.rejected": { label: "Application not approved", tone: "rejected" },
+  "application.photo_replaced": { label: "Student photo replaced", tone: "printed" },
+  "application.deleted": { label: "Application archived", tone: "rejected" },
+  "application.claimed": { label: "ID card claimed", tone: "claimed" },
+  "template.updated": { label: "ID card design updated", tone: "printed" },
+  "batch.created": { label: "ID print batch created", tone: "approved" },
+  "batch.printed": { label: "ID cards printed and ready", tone: "claimed" },
+  "notification.queued": { label: "Email notification queued", tone: "pending" },
+  "notification.retried": { label: "Email notification retried", tone: "approved" },
+  "notification.acknowledged": { label: "Email receipt acknowledged", tone: "claimed" },
 };
 
 type AuditMetadata = Record<string, unknown> | null | undefined;
@@ -51,13 +53,8 @@ export function auditActionLabel(action: string): string {
   return PRESENTATION[action]?.label ?? labelForUnknownAction(action);
 }
 
-export function auditActionStyle(action: string): AuditPresentation {
-  return PRESENTATION[action] ?? {
-    label: labelForUnknownAction(action),
-    color: "#475569",
-    background: "#f1f5f9",
-    border: "#cbd5e1",
-  };
+export function auditActionTone(action: string): AuditTone {
+  return PRESENTATION[action]?.tone ?? "neutral";
 }
 
 export function auditDetails(action: string, metadata: AuditMetadata): string {
