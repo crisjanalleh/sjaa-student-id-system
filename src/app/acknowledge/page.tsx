@@ -1,8 +1,14 @@
 import { and, eq } from "drizzle-orm";
-import { CheckCircle2, MailCheck, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Clock, MailCheck, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import { db } from "@/db";
 import { notificationLogs } from "@/db/schema";
+import {
+  ACK_LINK_TTL_HOURS,
+  acknowledgementExpiresAt,
+  formatAcknowledgementExpiry,
+  isAcknowledgementExpired,
+} from "@/lib/acknowledgement-expiry";
 import { SCHOOL } from "@/lib/config";
 import { sha256Hex } from "@/lib/crypto";
 
@@ -21,22 +27,33 @@ export default async function AcknowledgePage({
 }) {
   const params = await searchParams;
   const token = Array.isArray(params.token) ? params.token[0] : params.token;
+  const result = Array.isArray(params.result) ? params.result[0] : params.result;
   const validToken = typeof token === "string" && /^[A-Za-z0-9_-]{40,60}$/.test(token);
-  const rows = validToken
-    ? await db
+  let rows: { acknowledgedAt: Date | null; sentAt: Date | null }[] = [];
+  let lookupFailed = result === "error";
+  if (validToken) {
+    try {
+      rows = await db
         .select({
           acknowledgedAt: notificationLogs.acknowledgedAt,
+          sentAt: notificationLogs.sentAt,
         })
         .from(notificationLogs)
         .where(and(
           eq(notificationLogs.acknowledgementTokenHash, sha256Hex(token)),
           eq(notificationLogs.sentStatus, "sent"),
         ))
-        .limit(1)
-    : [];
+        .limit(1);
+    } catch (error) {
+      console.error("Acknowledgement lookup failed:", error);
+      lookupFailed = true;
+    }
+  }
   const alreadyAcknowledged = rows[0]?.acknowledgedAt;
   const showSuccess = Boolean(alreadyAcknowledged);
-  const showForm = Boolean(rows[0] && !alreadyAcknowledged && validToken);
+  const expired = Boolean(rows[0] && !alreadyAcknowledged && isAcknowledgementExpired(rows[0].sentAt));
+  const showForm = Boolean(rows[0] && !alreadyAcknowledged && !expired && validToken);
+  const showError = lookupFailed && !rows[0];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl items-center px-4 py-10">
@@ -67,6 +84,24 @@ export default async function AcknowledgePage({
                   Confirm receipt
                 </button>
               </form>
+            </>
+          ) : expired ? (
+            <>
+              <Clock className="mb-4 h-9 w-9" style={{ color: "var(--danger)" }} aria-hidden />
+              <h1 className="text-xl font-extrabold">This confirmation link has expired</h1>
+              <p className="text-muted mt-3 text-sm leading-relaxed">
+                Confirmation links are valid for {ACK_LINK_TTL_HOURS} hours after the email is sent
+                {rows[0]?.sentAt ? ` and this one expired on ${formatAcknowledgementExpiry(acknowledgementExpiresAt(rows[0].sentAt))} (Philippine time)` : ""}.
+                Your Student ID application is not affected. If you still need to confirm, contact the school through its usual channels.
+              </p>
+            </>
+          ) : showError ? (
+            <>
+              <TriangleAlert className="mb-4 h-9 w-9" style={{ color: "var(--danger)" }} aria-hidden />
+              <h1 className="text-xl font-extrabold">We could not process this link</h1>
+              <p className="text-muted mt-3 text-sm leading-relaxed">
+                Something went wrong on our side. Please try the link again in a few minutes. If the problem continues, contact the school through its usual channels.
+              </p>
             </>
           ) : (
             <>

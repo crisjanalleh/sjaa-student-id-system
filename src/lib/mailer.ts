@@ -15,6 +15,10 @@ import {
 } from "@/lib/email-templates";
 import { createMailerTransport, mailConfigurationError } from "@/lib/mailer-transport";
 import { deliveryErrorFromException } from "@/lib/delivery-error";
+import {
+  acknowledgementExpiresAt,
+  formatAcknowledgementExpiry,
+} from "@/lib/acknowledgement-expiry";
 
 type Executor = Pick<typeof db, "insert">;
 
@@ -97,10 +101,15 @@ export async function deliverNotification(
   try {
     const acknowledgementToken = randomToken(32);
     const acknowledgeUrl = `${getPublicBaseUrl()}/acknowledge?token=${encodeURIComponent(acknowledgementToken)}`;
+    const sentAt = new Date();
     const rendered = renderNotification(row.log.notificationType, {
       applicationCode: row.app.applicationCode,
       firstName: row.app.firstName,
-    }, { reason: row.app.rejectionReason, acknowledgeUrl });
+    }, {
+      reason: row.app.rejectionReason,
+      acknowledgeUrl,
+      acknowledgeExpiry: formatAcknowledgementExpiry(acknowledgementExpiresAt(sentAt)),
+    });
     const transporter = createMailerTransport();
 
     await db
@@ -120,7 +129,7 @@ export async function deliverNotification(
       .update(notificationLogs)
       .set({
         sentStatus: "sent",
-        sentAt: new Date(),
+        sentAt,
         error: null,
         attempts: row.log.attempts + 1,
         updatedAt: new Date(),

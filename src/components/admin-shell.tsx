@@ -2,34 +2,75 @@
 
 import {
   Bell,
+  IdCard,
   Inbox,
+  LayoutDashboard,
   LogOut,
-  MapPin,
-  SlidersHorizontal,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Printer,
+  QrCode,
+  ScrollText,
   ShieldCheck,
+  SlidersHorizontal,
   UserRound,
+  X,
+  MapPin,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { SCHOOL } from "@/lib/config";
-import DisplayPreferences, { WorkspaceSection } from "@/components/display-preferences";
+import DisplayPreferences from "@/components/display-preferences";
 import SjaaLogo from "@/components/sjaa-logo";
 import ManilaClock from "@/components/manila-clock";
 import PrintProgressDock from "@/components/print-progress/print-progress-dock";
 import type { UnreadCounts, UnreadSection } from "@/lib/unread";
 
-const NAV: { href: string; label: string; exact: boolean; unread?: UnreadSection }[] = [
-  { href: "/admin", label: "Dashboard", exact: true },
-  { href: "/admin/applications", label: "Applications", exact: false, unread: "applications" },
-  { href: "/admin/print", label: "Batch Print", exact: false },
-  { href: "/admin/template", label: "ID Template", exact: false },
-  { href: "/admin/qr", label: "QR Codes", exact: false },
-  { href: "/admin/notifications", label: "Notifications", exact: false, unread: "notifications" },
-  { href: "/admin/audit", label: "Audit Trail", exact: false },
+const NAV: { href: string; label: string; icon: LucideIcon; exact: boolean; unread?: UnreadSection }[] = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/applications", label: "Applications", icon: Inbox, exact: false, unread: "applications" },
+  { href: "/admin/print", label: "Batch Print", icon: Printer, exact: false },
+  { href: "/admin/template", label: "ID Template", icon: IdCard, exact: false },
+  { href: "/admin/qr", label: "QR Codes", icon: QrCode, exact: false },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell, exact: false, unread: "notifications" },
+  { href: "/admin/audit", label: "Audit Trail", icon: ScrollText, exact: false },
 ];
 
 const UNREAD_POLL_MS = 4_000;
+const COLLAPSE_KEY = "sjaa-sidebar-collapsed";
+const collapseListeners = new Set<() => void>();
+
+function subscribeCollapsed(listener: () => void) {
+  collapseListeners.add(listener);
+  window.addEventListener("storage", listener);
+  return () => {
+    collapseListeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
+}
+
+function getCollapsed() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setCollapsedPref(value: boolean) {
+  try {
+    localStorage.setItem(COLLAPSE_KEY, value ? "1" : "0");
+  } catch {
+    /* storage unavailable: preference is not saved */
+  }
+  collapseListeners.forEach((listener) => listener());
+}
 
 function badgeText(count: number) {
   return count > 99 ? "99+" : String(count);
@@ -54,10 +95,33 @@ export default function AdminShell({
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
-  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
-  const workspaceMenu = useRef<HTMLDivElement>(null);
+  const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsed, () => false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [unread, setUnread] = useState<UnreadCounts>(initialUnread);
   const activeSection = NAV.find((item) => item.unread && pathname.startsWith(item.href))?.unread ?? null;
+
+  function toggleCollapsed() {
+    setCollapsedPref(!collapsed);
+  }
+
+  function openWorkspace() {
+    if (collapsed) {
+      setCollapsedPref(false);
+      setWorkspaceOpen(true);
+      return;
+    }
+    setWorkspaceOpen((open) => !open);
+  }
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDrawerOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [drawerOpen]);
 
   // Opening a section marks it read; while it stays open, new arrivals refresh the page and are marked read too.
   useEffect(() => {
@@ -97,24 +161,6 @@ export default function AdminShell({
     };
   }, [activeSection, csrfToken, router]);
 
-  useEffect(() => {
-    if (!workspaceMenuOpen) return;
-    function dismissMenu(event: MouseEvent) {
-      if (event.target instanceof Node && !workspaceMenu.current?.contains(event.target)) {
-        setWorkspaceMenuOpen(false);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setWorkspaceMenuOpen(false);
-    }
-    document.addEventListener("mousedown", dismissMenu);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("mousedown", dismissMenu);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [workspaceMenuOpen]);
-
   async function logout() {
     if (loggingOut || !window.confirm("Are you sure you want to sign out of the administration workspace?")) return;
     setLoggingOut(true);
@@ -130,7 +176,6 @@ export default function AdminShell({
       }
       router.replace("/admin/login");
       router.refresh();
-      setWorkspaceMenuOpen(false);
     } catch {
       setLogoutError("Connection problem while signing out. Please try again.");
     } finally {
@@ -138,115 +183,169 @@ export default function AdminShell({
     }
   }
 
-  const nav = (
-    <nav className="admin-nav" aria-label="Administration">
-      {NAV.map((item) => {
-        const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-        const count = item.unread ? unread[item.unread] : 0;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            data-active={active}
-            className="admin-nav-link"
-            aria-current={active ? "page" : undefined}
-          >
-            {item.unread === "applications" && <Inbox className="h-3.5 w-3.5" aria-hidden />}
-            {item.unread === "notifications" && <Bell className="h-3.5 w-3.5" aria-hidden />}
-            {item.label}
-            {count > 0 && (
-              <span className="nav-badge" aria-label={`${count} new`}>
-                {badgeText(count)}
-              </span>
-            )}
-          </Link>
-        );
-      })}
-    </nav>
+  const avatar = (
+    <span className="sb-avatar flex shrink-0 overflow-hidden">
+      {avatarDataUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={avatarDataUrl} alt="" className="h-full w-full object-cover" />
+      ) : fullName.trim().charAt(0).toUpperCase() || <UserRound className="h-5 w-5" aria-hidden />}
+    </span>
   );
 
   return (
-    <div className="min-h-screen">
-      <div className="admin-masthead no-print">
-        <header className="admin-header relative mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-1 basis-[280px] items-center gap-3">
-            <SjaaLogo className="admin-brand-mark object-contain" priority />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold leading-tight">{SCHOOL.name}</p>
-              <p className="text-muted truncate text-[11px]">Student ID Issuance · Administration</p>
-              <p className="text-muted truncate text-[11px]">{SCHOOL.address}</p>
-            </div>
+    <div className="admin-app" data-collapsed={collapsed} data-drawer={drawerOpen}>
+      <div className="sb-topbar no-print">
+        <button type="button" className="sb-icon-btn" onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu">
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+        <SjaaLogo className="h-8 w-8 object-contain" />
+        <span className="truncate text-sm font-bold">Student ID Administration</span>
+        {unread.applications + unread.notifications > 0 && (
+          <span className="nav-badge ml-auto" aria-label={`${unread.applications + unread.notifications} new`}>
+            {badgeText(unread.applications + unread.notifications)}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        className="sb-backdrop no-print"
+        aria-label="Close navigation menu"
+        tabIndex={drawerOpen ? 0 : -1}
+        onClick={() => setDrawerOpen(false)}
+      />
+      <aside className="sidebar no-print" aria-label="Administration sidebar">
+        <div className="sb-head">
+          <SjaaLogo className="sb-logo object-contain" priority />
+          <div className="sb-label min-w-0 flex-1">
+            <p className="sb-school-name">{SCHOOL.name}</p>
+            <p className="sb-school-sub">Student ID Administration</p>
           </div>
-          <ManilaClock />
-          <div className="admin-workspace-menu no-print" ref={workspaceMenu}>
-            <div className="admin-workspace-panel" id="admin-workspace-panel" hidden={!workspaceMenuOpen}>
-              <Link
-                href="/admin/profile"
-                className="admin-workspace-profile"
-                onClick={() => setWorkspaceMenuOpen(false)}
-              >
-                <span className="admin-user-icon admin-profile-avatar flex shrink-0 overflow-hidden">
-                  {avatarDataUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                  ) : fullName.trim().charAt(0).toUpperCase() || <UserRound className="h-6 w-6" aria-hidden />}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold">{fullName}</span>
-                  <span className="text-muted block truncate text-xs">@{username}</span>
-                  <span className="admin-profile-link">View and edit profile</span>
-                </span>
-              </Link>
-              <div className="ws-groups">
-                <WorkspaceSection title="Workspace info" icon={<ShieldCheck className="h-4 w-4" aria-hidden />} summary="Access · location">
-                  <div className="admin-workspace-context">
-                    <div className="admin-workspace-context-item">
-                      <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden />
-                      <span>
-                        <span className="admin-workspace-context-label">Access</span>
-                        <span className="admin-workspace-context-value">Authorized staff</span>
-                      </span>
-                    </div>
-                    <div className="admin-workspace-context-item">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>
-                        <span className="admin-workspace-context-label">School location</span>
-                        <span className="admin-workspace-context-value">{SCHOOL.address}</span>
-                      </span>
-                    </div>
-                  </div>
-                </WorkspaceSection>
-                <DisplayPreferences />
-              </div>
-              <button
-                type="button"
-                className="btn-signout"
-                onClick={logout}
-                disabled={loggingOut}
-              >
-                <LogOut className="h-4 w-4" aria-hidden />
-                {loggingOut ? "Signing out…" : "Sign out"}
-              </button>
-              {logoutError && <p className="mt-2 text-xs" style={{ color: "var(--danger)" }} role="alert">{logoutError}</p>}
-            </div>
+          <button
+            type="button"
+            className="sb-icon-btn sb-collapse-btn"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeftOpen className="h-5 w-5" aria-hidden /> : <PanelLeftClose className="h-5 w-5" aria-hidden />}
+          </button>
+          <button type="button" className="sb-icon-btn sb-close-btn" onClick={() => setDrawerOpen(false)} aria-label="Close navigation menu">
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        </div>
+
+        <div className="sb-scroll">
+          <div className="sb-clock">
+            <ManilaClock />
+          </div>
+
+          <nav className="sb-nav" aria-label="Administration">
+            {NAV.map((item) => {
+              const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+              const count = item.unread ? unread[item.unread] : 0;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  data-active={active}
+                  className="sb-link"
+                  aria-current={active ? "page" : undefined}
+                  title={collapsed ? item.label : undefined}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  <Icon className="sb-icon" aria-hidden />
+                  <span className="sb-label">{item.label}</span>
+                  {count > 0 && (
+                    <span className="nav-badge sb-badge" aria-label={`${count} new`}>
+                      {badgeText(count)}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="sb-workspace" data-open={workspaceOpen && !collapsed}>
             <button
               type="button"
-              className="admin-workspace-trigger"
-              onClick={() => setWorkspaceMenuOpen((open) => !open)}
-              aria-expanded={workspaceMenuOpen}
-              aria-controls="admin-workspace-panel"
-              aria-label={workspaceMenuOpen ? "Close workspace menu" : "Open workspace menu"}
+              className="sb-link sb-workspace-toggle"
+              onClick={openWorkspace}
+              aria-expanded={workspaceOpen && !collapsed}
+              aria-controls="sb-workspace-body"
+              title={collapsed ? "Workspace" : undefined}
             >
-              <SlidersHorizontal className="h-4 w-4" aria-hidden />
-              <span>Workspace</span>
+              <SlidersHorizontal className="sb-icon" aria-hidden />
+              <span className="sb-label">Workspace</span>
+              <ChevronDown className="sb-chevron sb-label" aria-hidden />
             </button>
+            <div className="sb-workspace-body" id="sb-workspace-body" inert={!workspaceOpen || collapsed}>
+              <div className="sb-workspace-inner">
+                <div className="ws-groups">
+                  <DisplayPreferences />
+                </div>
+              </div>
+            </div>
           </div>
-        </header>
-        <div className="admin-nav-wrap">
-          <div className="mx-auto max-w-7xl px-2 sm:px-6">{nav}</div>
         </div>
+
+        <div className="sb-foot">
+          <Link
+            href="/admin/profile"
+            className="sb-profile group"
+            data-active={pathname.startsWith("/admin/profile")}
+            title={collapsed ? `${fullName} — profile` : undefined}
+            onClick={() => setDrawerOpen(false)}
+          >
+            <div className="relative shrink-0">
+              {avatar}
+              <span className="sb-online-dot" aria-hidden />
+            </div>
+            <div className="sb-label sb-profile-info min-w-0 flex-1 text-left">
+              <span className="sb-profile-name block truncate">{fullName}</span>
+              <span className="sb-profile-meta flex items-center gap-1.5 mt-0.5">
+                <span className="sb-profile-user text-muted truncate text-xs">@{username}</span>
+                <span className="sb-profile-tag">Admin</span>
+              </span>
+            </div>
+            <ChevronRight className="sb-label sb-profile-arrow h-4 w-4 shrink-0" aria-hidden />
+          </Link>
+          <button
+            type="button"
+            className="btn-signout sb-signout group"
+            onClick={logout}
+            disabled={loggingOut}
+            title={collapsed ? "Sign out" : undefined}
+            aria-label="Sign out"
+          >
+            {loggingOut ? (
+              <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+            ) : (
+              <LogOut className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            )}
+            <span className="sb-label">{loggingOut ? "Signing out…" : "Sign out"}</span>
+          </button>
+          {logoutError && (
+            <p className="mt-2 text-xs" style={{ color: "var(--danger)" }} role="alert">
+              {logoutError}
+            </p>
+          )}
+        </div>
+      </aside>
+
+      <div className="admin-content">
+        <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</main>
+        <footer className="admin-footer no-print">
+          <div className="admin-footer-inner">
+            <span className="admin-footer-item font-semibold text-[var(--ink)]">Authorized Staff Only</span>
+            <span className="admin-footer-sep" aria-hidden>|</span>
+            <span className="admin-footer-item admin-footer-address">{SCHOOL.address}</span>
+            <span className="admin-footer-sep" aria-hidden>|</span>
+            <span className="admin-footer-item font-semibold text-[var(--ink)]">{new Date().getFullYear()}</span>
+          </div>
+        </footer>
       </div>
-      <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</main>
       <PrintProgressDock />
     </div>
   );

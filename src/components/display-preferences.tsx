@@ -15,17 +15,17 @@ import {
   type TypefacePreference,
 } from "@/lib/preferences";
 
-const DENSITIES: { value: DensityPreference; label: string }[] = [
-  { value: "default", label: "Default" },
-  { value: "comfort", label: "Comfort" },
-  { value: "compact", label: "Compact" },
+const DENSITIES: { value: DensityPreference; label: string; desc: string }[] = [
+  { value: "compact", label: "Compact", desc: "Dense view" },
+  { value: "default", label: "Default", desc: "Balanced" },
+  { value: "comfort", label: "Comfort", desc: "Spacious" },
 ];
 
-const FONTS: { value: FontPreference; label: string; sample: string }[] = [
-  { value: "small", label: "Small", sample: "text-[11px]" },
-  { value: "default", label: "Default", sample: "text-xs" },
-  { value: "large", label: "Large", sample: "text-sm" },
-  { value: "xlarge", label: "X-Large", sample: "text-base" },
+const FONTS: { value: FontPreference; label: string; code: string; sample: string }[] = [
+  { value: "small", label: "Small", code: "S", sample: "text-[11px]" },
+  { value: "default", label: "Default", code: "M", sample: "text-xs" },
+  { value: "large", label: "Large", code: "L", sample: "text-sm" },
+  { value: "xlarge", label: "X-Large", code: "XL", sample: "text-base" },
 ];
 
 const TYPEFACES: { value: TypefacePreference; label: string; note: string; family: string }[] = [
@@ -52,7 +52,7 @@ const COLOR_FILTERS: { value: ColorFilterPreference; label: string; note: string
   { value: "grayscale", label: "Grayscale", note: "No colour" },
 ];
 
-/** Collapsible group used to keep the workspace panel tidy. */
+/** Collapsible group with smooth expand/collapse animation */
 export function WorkspaceSection({
   title,
   icon,
@@ -70,14 +70,22 @@ export function WorkspaceSection({
   const id = useId();
   return (
     <div className="ws-group" data-open={open}>
-      <button type="button" className="ws-group-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+      <button
+        type="button"
+        className="ws-group-toggle"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+      >
         {icon}
         <span className="ws-group-title">{title}</span>
         {summary && !open ? <span className="ws-group-summary">{summary}</span> : null}
         <ChevronDown className="ws-group-chevron h-4 w-4" aria-hidden />
       </button>
-      <div id={id} className="ws-group-body" hidden={!open}>
-        {children}
+      <div id={id} className="ws-group-body" inert={!open ? true : undefined}>
+        <div className="ws-group-body-inner">
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -100,8 +108,8 @@ export default function DisplayPreferences() {
 
   const typefaceButton = ({ value, label, note, family }: (typeof TYPEFACES)[number]) => (
     <button key={value} type="button" role="radio" aria-checked={prefs.typeface === value} onClick={() => change({ typeface: value })}>
-      <span className="text-sm font-semibold" style={{ fontFamily: family }}>{label}</span>
-      <span className="text-muted text-[10px]">{note}</span>
+      <span className="pref-list-font" style={{ fontFamily: family }}>{label}</span>
+      <span className="pref-list-note">{note}</span>
     </button>
   );
   const activeTypeface = [...WEB_TYPEFACES, ...TYPEFACES].find((t) => t.value === prefs.typeface)?.label;
@@ -111,20 +119,30 @@ export default function DisplayPreferences() {
   return (
     <>
       <WorkspaceSection title="Appearance" icon={<Palette className="h-4 w-4" aria-hidden />} summary={prefs.theme === "system" ? "Match device" : prefs.theme} defaultOpen>
-        <p className="admin-workspace-section-title">Theme</p>
+        <p className="admin-workspace-section-title">Color theme</p>
         <ThemeToggle />
       </WorkspaceSection>
+
       <WorkspaceSection title="Typography" icon={<Type className="h-4 w-4" aria-hidden />} summary={`${activeTypeface} · ${sizeLabel}${prefs.bold ? " · Bold" : ""}`}>
         <p className="admin-workspace-section-title">Text size</p>
-        <div className="pref-segment" role="radiogroup" aria-label="Text size">
-          {FONTS.map(({ value, label, sample }) => (
-            <button key={value} type="button" role="radio" aria-checked={prefs.font === value} onClick={() => change({ font: value })}>
-              <span className={`block font-bold ${sample}`}>Aa</span>
-              {label}
+        <div className="pref-size-grid" role="radiogroup" aria-label="Text size">
+          {FONTS.map(({ value, label, code, sample }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              className="pref-size-btn"
+              aria-checked={prefs.font === value}
+              title={`${label} text size`}
+              aria-label={`${label} text size`}
+              onClick={() => change({ font: value })}
+            >
+              <span className={`pref-size-sample ${sample}`} aria-hidden>Aa</span>
+              <span className="pref-size-code">{code}</span>
             </button>
           ))}
         </div>
-        <p className="text-muted mt-1.5 text-[10px] leading-snug">Scales the whole workspace, not just body text.</p>
+        <p className="text-muted mt-1.5 text-[10px] leading-snug">Scales the whole workspace interface.</p>
         <Switch label="Bold text" checked={prefs.bold} onChange={(bold) => change({ bold })} />
         <p className="admin-workspace-section-title mt-3">Modern web fonts</p>
         <div className="pref-list" role="radiogroup" aria-label="Modern web fonts">
@@ -135,19 +153,35 @@ export default function DisplayPreferences() {
           {TYPEFACES.map(typefaceButton)}
         </div>
       </WorkspaceSection>
+
       <WorkspaceSection title="Layout" icon={<LayoutGrid className="h-4 w-4" aria-hidden />} summary={densityLabel}>
         <p className="admin-workspace-section-title">Layout density</p>
-        <div className="pref-segment" role="radiogroup" aria-label="Layout density">
-          {DENSITIES.map(({ value, label }) => (
-            <button key={value} type="button" role="radio" aria-checked={prefs.density === value} onClick={() => change({ density: value })}>
-              {label}
+        <div className="pref-density-grid" role="radiogroup" aria-label="Layout density">
+          {DENSITIES.map(({ value, label, desc }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              className="pref-density-btn"
+              aria-checked={prefs.density === value}
+              title={`${label} layout: ${desc}`}
+              aria-label={`${label} layout density`}
+              onClick={() => change({ density: value })}
+            >
+              <span className={`pref-density-preview density-${value}`} aria-hidden>
+                <span />
+                <span />
+                <span />
+              </span>
+              <span className="pref-density-label">{label}</span>
             </button>
           ))}
         </div>
         <p className="text-muted mt-1.5 text-[10px] leading-snug">
-          Compact fits more rows on screen; Comfort adds space for easier tapping.
+          Compact fits more rows; Comfort adds breathing space for touch devices.
         </p>
       </WorkspaceSection>
+
       <WorkspaceSection
         title="Accessibility"
         icon={<Accessibility className="h-4 w-4" aria-hidden />}
@@ -159,8 +193,8 @@ export default function DisplayPreferences() {
         <div className="pref-list" role="radiogroup" aria-label="Color filters">
           {COLOR_FILTERS.map(({ value, label, note }) => (
             <button key={value} type="button" role="radio" aria-checked={prefs.colorFilter === value} onClick={() => change({ colorFilter: value })}>
-              <span className="text-sm font-semibold">{label}</span>
-              <span className="text-muted text-[10px]">{note}</span>
+              <span className="pref-list-font">{label}</span>
+              <span className="pref-list-note">{note}</span>
             </button>
           ))}
         </div>
@@ -168,6 +202,7 @@ export default function DisplayPreferences() {
           Helps tell colours apart for colour-blind users. Printed IDs are never affected.
         </p>
       </WorkspaceSection>
+
       <div className="flex items-center justify-between gap-2 px-2 pt-3">
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaveFailed(!resetPreferences())}>
           <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset display

@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import type { StudentApplication } from "@/db/schema";
 import { SCHOOL } from "@/lib/config";
 import { esc } from "@/lib/format";
@@ -26,13 +26,14 @@ function shell(title: string, bodyHtml: string): string {
 </body></html>`;
 }
 
-function acknowledgementButton(url: string): string {
+function acknowledgementButton(url: string, expiry = ""): string {
   if (!url) return "";
   return `
     <p style="margin:20px 0 8px;font-size:14px;line-height:1.6;">Please confirm that you have received and read this notice. Your confirmation records receipt only; it does not change your application status.</p>
     <p style="margin:0 0 14px;">
       <a href="${esc(url)}" style="display:inline-block;border-radius:6px;padding:11px 18px;background:#1B2A4A;color:#FFFFFF;font-size:14px;font-weight:700;text-decoration:none;">Acknowledge receipt</a>
     </p>
+    ${expiry ? `<p style="margin:0 0 8px;font-size:12px;line-height:1.5;color:#B45309;">This confirmation link expires on ${esc(expiry)} (Philippine time). After that, it can no longer be used.</p>` : ""}
     <p style="margin:0;font-size:11px;line-height:1.5;color:#64748B;">If the button does not open, copy this address into your browser: ${esc(url)}</p>`;
 }
 
@@ -40,8 +41,9 @@ export function rejectionNotice(
   app: Pick<StudentApplication, "applicationCode" | "firstName">,
   reason: string,
   acknowledgeUrl = "",
+  acknowledgeExpiry = "",
 ): RenderedEmail {
-  const subject = `[${SCHOOL.shortName}] Student ID Application — Photo Rejected (${app.applicationCode})`;
+  const subject = `[${SCHOOL.shortName}] Student ID Application â€” Photo Rejected (${app.applicationCode})`;
   const text = [
     `Dear ${app.firstName},`,
     "",
@@ -55,10 +57,10 @@ export function rejectionNotice(
     "",
     "Please do not submit a second application. Refer to the control number above if you contact the school about this notice.",
     "",
-    ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, "Acknowledging confirms that you received this email; it does not change your application status.", ""] : []),
-    "If you believe this notice was sent in error, contact the Administration Office through the school’s usual channels.",
+    ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, ...(acknowledgeExpiry ? [`This link expires on ${acknowledgeExpiry} (Philippine time).`] : []), "Acknowledging confirms that you received this email; it does not change your application status.", ""] : []),
+    "If you believe this notice was sent in error, contact the Administration Office through the schoolâ€™s usual channels.",
     "",
-    `— ${SCHOOL.name}`,
+    `â€” ${SCHOOL.name}`,
   ].join("\n");
   const body = `
     <p style="margin:0 0 12px;font-size:14px;">Dear <strong>${esc(app.firstName)}</strong>,</p>
@@ -72,7 +74,7 @@ export function rejectionNotice(
     <h2 style="margin:18px 0 6px;font-size:14px;color:#1B2A4A;">What you need to do</h2>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.65;">Please visit the <strong>Administration Office</strong> with a recent, clear replacement photo taken against a plain background. Your face should be clearly visible, and the image should not use filters. Office staff can help replace the photo and return your application for review.</p>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.65;">Please do not submit a second application. Refer to the control number above if you contact the school about this notice. If you believe this message was sent in error, contact the Administration Office through the school&rsquo;s usual channels.</p>
-    ${acknowledgementButton(acknowledgeUrl)}
+    ${acknowledgementButton(acknowledgeUrl, acknowledgeExpiry)}
     <p style="margin:16px 0 0;font-size:14px;">Respectfully,<br /><strong>Student Services Office</strong><br />${esc(SCHOOL.name)}</p>`;
   return { subject, text, html: shell(subject, body) };
 }
@@ -80,6 +82,7 @@ export function rejectionNotice(
 export function readyForClaiming(
   app: Pick<StudentApplication, "applicationCode" | "firstName">,
   acknowledgeUrl = "",
+  acknowledgeExpiry = "",
 ): RenderedEmail {
   const subject = `[${SCHOOL.shortName}] Your Student ID is Ready for Claiming (${app.applicationCode})`;
   const text = [
@@ -93,10 +96,10 @@ export function readyForClaiming(
     "",
     "Please quote the application control number above if you contact the school about your card.",
     "",
-    ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, "Acknowledging confirms that you received this email; it does not mark the physical card as collected.", ""] : []),
-    "If you believe this message was sent in error, contact the Administration Office through the school’s usual channels.",
+    ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, ...(acknowledgeExpiry ? [`This link expires on ${acknowledgeExpiry} (Philippine time).`] : []), "Acknowledging confirms that you received this email; it does not mark the physical card as collected.", ""] : []),
+    "If you believe this message was sent in error, contact the Administration Office through the schoolâ€™s usual channels.",
     "",
-    `— ${SCHOOL.name}`,
+    `â€” ${SCHOOL.name}`,
   ].join("\n");
   const body = `
     <p style="margin:0 0 12px;font-size:14px;">Dear <strong>${esc(app.firstName)}</strong>,</p>
@@ -108,7 +111,7 @@ export function readyForClaiming(
     <h2 style="margin:18px 0 6px;font-size:14px;color:#1B2A4A;">Collection instructions</h2>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.65;">Please visit the <strong>Administration Office</strong> during regular school office hours to collect your physical ID. Bring a valid school identification document or other proof of identity so staff can verify the release. If you cannot collect it yourself, contact the school in advance to ask about its authorized collection procedure.</p>
     <p style="margin:0 0 12px;font-size:14px;line-height:1.65;">Please quote the application control number above if you contact the school about your card. This email confirms that the card is ready; it does not mean that the card has already been collected.</p>
-    ${acknowledgementButton(acknowledgeUrl)}
+    ${acknowledgementButton(acknowledgeUrl, acknowledgeExpiry)}
     <p style="margin:16px 0 0;font-size:14px;">Respectfully,<br /><strong>Student Services Office</strong><br />${esc(SCHOOL.name)}</p>`;
   return { subject, text, html: shell(subject, body) };
 }
@@ -116,16 +119,17 @@ export function readyForClaiming(
 export function renderNotification(
   type: "rejection_notice" | "ready_for_claiming",
   app: Pick<StudentApplication, "applicationCode" | "firstName">,
-  context?: { reason?: string | null; acknowledgeUrl?: string },
+  context?: { reason?: string | null; acknowledgeUrl?: string; acknowledgeExpiry?: string },
 ): RenderedEmail {
   if (type === "rejection_notice") {
     return rejectionNotice(
       app,
       context?.reason?.trim() || "Photo did not meet the ID guidelines.",
       context?.acknowledgeUrl,
+      context?.acknowledgeExpiry,
     );
   }
-  return readyForClaiming(app, context?.acknowledgeUrl);
+  return readyForClaiming(app, context?.acknowledgeUrl, context?.acknowledgeExpiry);
 }
 
 export function mailConfigured(): boolean {

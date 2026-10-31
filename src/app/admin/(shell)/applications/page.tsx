@@ -1,5 +1,5 @@
 import { and, desc, asc, eq, isNull, like, or, sql, type SQL } from "drizzle-orm";
-import { ClipboardList, Inbox, Search } from "lucide-react";
+import { ChevronRight, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
 import { studentApplications } from "@/db/schema";
@@ -12,7 +12,7 @@ import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Applications" };
+export const metadata = { title: "Applications Queue — San Jose Adventist Academy" };
 
 const PAGE_SIZE = ADMIN_PAGE_SIZE;
 
@@ -97,49 +97,78 @@ export default async function ApplicationsPage({
       <th aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : undefined}>
         <ListLink
           href={`/admin/applications${buildQuery({ ...baseParams, page: undefined }, { sort: key, dir: nextDir })}`}
-          className="inline-flex items-center gap-1 no-underline"
+          className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
           style={{ color: active ? "var(--academic-blue)" : undefined }}
         >
           {label}
-          {active && <span aria-hidden>{dir === "asc" ? "▲" : "▼"}</span>}
+          {active && <span className="text-[10px]" aria-hidden>{dir === "asc" ? "▲" : "▼"}</span>}
         </ListLink>
       </th>
     );
   };
 
   return (
-    <div>
-      <div className="page-head-stack">
-        <h1 className="flex items-center gap-2 text-lg font-extrabold tracking-tight">
-          <ClipboardList className="h-5 w-5" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Applications Queue
-        </h1>
-        <p className="text-muted text-sm">
-          Review, approve, or reject Student ID submissions.
-        </p>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      {/* Breadcrumb & Page Head - matching admin profile design */}
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
+          <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="text-[var(--ink)] font-semibold">Applications Queue</span>
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div>
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] ring-1 ring-[var(--academic-blue)]/20 shadow-xs">
+                <ClipboardList className="h-5 w-5" aria-hidden />
+              </span>
+              Applications Queue
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              Review, verify, and approve Student ID applications submitted by students.
+            </p>
+          </div>
+
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
+            <span className="h-2 w-2 rounded-full bg-[var(--academic-blue)]" />
+            {Number(total)} Application{Number(total) === 1 ? "" : "s"}
+          </div>
+        </div>
       </div>
 
-      <ListCard>
-        {/* Filters */}
-        <FilterForm key={`${q}|${status}`} action="/admin/applications" className="flex flex-wrap items-end gap-3 border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
+      {/* Main List & Table Card */}
+      <ListCard className="card overflow-hidden border border-[var(--line)] bg-[var(--elevated)] shadow-sm">
+        {/* Filters Header Bar */}
+        <FilterForm
+          key={`${q}|${status}`}
+          action="/admin/applications"
+          className="flex flex-wrap items-end gap-3.5 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-4"
+        >
           <input type="hidden" name="sort" value={sort} />
           <input type="hidden" name="dir" value={dir} />
-          <div className="min-w-[220px] flex-1">
+
+          <div className="min-w-[240px] flex-1 space-y-1">
             <label className="lbl" htmlFor="q">
-              Search
+              <Search className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>Search Submissions</span>
             </label>
             <input
               id="q"
               name="q"
               className="inp"
               defaultValue={q}
-              placeholder="Application Control Number, Student ID/LRN, or name…"
+              placeholder="Application Control No., Student ID/LRN, or Student Name…"
               maxLength={80}
             />
           </div>
-          <div>
+
+          <div className="w-full sm:w-56 space-y-1">
             <label className="lbl" htmlFor="status">
-              Status
+              <Filter className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span>Status Filter</span>
             </label>
             <SelectField id="status" name="status" className="inp" defaultValue={status}>
               <option value="">All statuses</option>
@@ -150,25 +179,30 @@ export default async function ApplicationsPage({
               ))}
             </SelectField>
           </div>
-          <FilterSubmit>
-            <Search className="h-4 w-4" aria-hidden /> Filter
-          </FilterSubmit>
-          {(q || status) && (
-            <ListLink href="/admin/applications" className="btn btn-ghost">
-              Clear
-            </ListLink>
-          )}
+
+          <div className="flex items-center gap-2 pt-1">
+            <FilterSubmit>
+              <Search className="h-4 w-4" aria-hidden /> Filter
+            </FilterSubmit>
+            {(q || status) && (
+              <ListLink href="/admin/applications" className="btn btn-ghost btn-sm gap-1 text-xs">
+                <X className="h-3.5 w-3.5" aria-hidden /> Clear
+              </ListLink>
+            )}
+          </div>
         </FilterForm>
 
-        {/* Results */}
+        {/* Results Table */}
         {apps.length === 0 ? (
-          <div className="px-4 py-14 text-center">
-            <Inbox className="mx-auto mb-3 h-10 w-10" style={{ color: "var(--muted)" }} aria-hidden />
-            <p className="font-semibold">No applications found</p>
-            <p className="text-muted mt-1 text-sm">
+          <div className="px-6 py-16 text-center">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
+              <Inbox className="h-7 w-7" aria-hidden />
+            </div>
+            <p className="font-bold text-base text-[var(--ink)]">No applications found</p>
+            <p className="text-muted mt-1 text-xs max-w-sm mx-auto">
               {q || status
-                ? "Try adjusting your search or filters."
-                : "Submissions will appear here once students apply through the QR link."}
+                ? "No applications matched your filter criteria. Try adjusting your search query or reset the filters."
+                : "Student ID applications will appear here as soon as students submit their application form."}
             </p>
           </div>
         ) : (
@@ -179,7 +213,7 @@ export default async function ApplicationsPage({
                   {sortHeader("code", "Control No.")}
                   {sortHeader("student", "Student ID / LRN")}
                   {sortHeader("name", "Student Name")}
-                  <th>Grade</th>
+                  <th>Grade & Track</th>
                   {sortHeader("status", "Status")}
                   {sortHeader("created", "Submitted")}
                   <th className="!text-right">Action</th>
@@ -187,20 +221,22 @@ export default async function ApplicationsPage({
               </thead>
               <tbody>
                 {apps.map((a) => (
-                  <tr key={a.id}>
-                    <td className="font-mono text-xs font-bold">{a.applicationCode}</td>
-                    <td className="font-mono text-xs">{a.studentIdNumber}</td>
-                    <td className="max-w-[220px] truncate">{fullName(a)}</td>
-                    <td className="whitespace-nowrap">
-                      {a.gradeLevel}
-                      {a.trackStrand ? <span className="text-muted"> · {a.trackStrand.split("—")[0].trim()}</span> : null}
+                  <tr key={a.id} className="hover:bg-[var(--card)]/50 transition-colors">
+                    <td className="font-mono text-xs font-bold text-[var(--academic-blue)]">{a.applicationCode}</td>
+                    <td className="font-mono text-xs text-muted">{a.studentIdNumber}</td>
+                    <td className="max-w-[220px] truncate font-semibold text-sm">{fullName(a)}</td>
+                    <td className="whitespace-nowrap text-xs">
+                      <span className="font-medium text-[var(--ink)]">{a.gradeLevel}</span>
+                      {a.trackStrand ? (
+                        <span className="text-muted ml-1 font-normal">· {a.trackStrand.split("—")[0].trim()}</span>
+                      ) : null}
                     </td>
                     <td>
                       <StatusBadge status={a.status} />
                     </td>
                     <td className="text-muted whitespace-nowrap text-xs">{formatDateTime(a.createdAt)}</td>
                     <td className="!text-right">
-                      <Link href={`/admin/applications/${a.id}`} className="btn btn-outline btn-sm">
+                      <Link href={`/admin/applications/${a.id}`} className="btn btn-outline btn-sm font-semibold">
                         Review
                       </Link>
                     </td>
@@ -211,7 +247,7 @@ export default async function ApplicationsPage({
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination Bar */}
         <Pager
           basePath="/admin/applications"
           params={baseParams}

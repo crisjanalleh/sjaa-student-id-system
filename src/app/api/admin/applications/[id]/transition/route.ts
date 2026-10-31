@@ -28,6 +28,23 @@ function json(status: number, body: Record<string, unknown>) {
  */
 export async function POST(
   req: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    return await handleTransition(req, context);
+  } catch (error) {
+    console.error("Application transition failed:", error);
+    const code = (error as { code?: string; cause?: { code?: string } })?.code
+      ?? (error as { cause?: { code?: string } })?.cause?.code;
+    const message = code === "ER_BAD_FIELD_ERROR" || code === "ER_NO_SUCH_TABLE"
+      ? "The database is missing a required update. Run the pending database migrations (npm run db:migrate:notification-acknowledgement) and try again."
+      : "The action could not be completed because of a server error. Please refresh the page to check the current status, then try again.";
+    return json(500, { ok: false, error: message });
+  }
+}
+
+async function handleTransition(
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { ctx, error } = await requireAdminApi();
@@ -148,7 +165,11 @@ export async function POST(
 
     // Delivery happens after the state, audit event, and notification row
     // have committed together; SMTP failures remain visible for retry.
-    await deliverNotification(result.notificationId);
+    try {
+      await deliverNotification(result.notificationId);
+    } catch (error) {
+      console.error("Rejection notification delivery failed:", error);
+    }
 
     return json(200, { ok: true, status: "rejected" });
   }
