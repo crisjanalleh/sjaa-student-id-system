@@ -121,7 +121,9 @@ function store(key: string, value: string | null): boolean {
 
 /** Saves one preference (non-personal, device-local) and applies it everywhere immediately. */
 export function updatePreferences(patch: Partial<Preferences>): boolean {
-  const next = { ...getPreferences(), ...patch };
+  const prev = getPreferences();
+  const next = { ...prev, ...patch };
+  const themeChanged = patch.theme !== undefined && patch.theme !== prev.theme;
   let saved = true;
   saved = store(KEYS.theme, next.theme === "system" ? null : next.theme) && saved;
   saved = store(KEYS.density, next.density === "default" ? null : next.density) && saved;
@@ -131,10 +133,30 @@ export function updatePreferences(patch: Partial<Preferences>): boolean {
   saved = store(KEYS.reduceMotion, next.reduceMotion ? "reduce" : null) && saved;
   saved = store(KEYS.bold, next.bold ? "on" : null) && saved;
   saved = store(KEYS.colorFilter, next.colorFilter === "none" ? null : next.colorFilter) && saved;
+  if (themeChanged && animateTheme(next)) {
+    window.dispatchEvent(new Event(PREFERENCE_EVENT));
+    return saved;
+  }
   freezeTransitions();
   applyToDocument(next);
   window.dispatchEvent(new Event(PREFERENCE_EVENT));
   return saved;
+}
+
+let animTimer = 0;
+function animateTheme(next: Preferences): boolean {
+  const root = document.documentElement;
+  if (root.getAttribute("data-motion") === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+  if (doc.startViewTransition) {
+    doc.startViewTransition(() => applyToDocument(next));
+    return true;
+  }
+  root.setAttribute("data-theme-anim", "");
+  applyToDocument(next);
+  window.clearTimeout(animTimer);
+  animTimer = window.setTimeout(() => root.removeAttribute("data-theme-anim"), 500);
+  return true;
 }
 
 let switchTimer = 0;

@@ -198,7 +198,7 @@ function CardFront({
         <div className="sjaa-front-name" style={{ fontSize: `${design.nameFontSize}px`, transform: nameTransform }}>
           {data.fullNameLine}
         </div>
-        <div className="sjaa-front-lrn">
+        <div className="sjaa-front-lrn" style={{ fontSize: `${11 * design.detailFontScale}px` }}>
           <span>LRN:</span>
           <b>{data.studentIdNumber}</b>
         </div>
@@ -208,7 +208,7 @@ function CardFront({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={data.studentSignatureDataUrl} alt="" />
           )}
-          <span className="sjaa-student-signature-label">Student Signature</span>
+          <span className="sjaa-student-signature-label" style={{ fontSize: `${8 * design.detailFontScale}px` }}>Student Signature</span>
         </div>
         <BottomWave />
       </div>

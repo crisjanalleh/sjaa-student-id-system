@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { getAdminContext } from "@/lib/auth";
 import { SCHOOL } from "@/lib/config";
 import LoginForm from "./login-form";
@@ -47,9 +48,14 @@ export default async function AdminLoginPage() {
                 <p className="text-sm font-bold">{SCHOOL.name}</p>
                 <p className="text-muted mt-1 text-xs">{SCHOOL.address}</p>
               </div>
-              <div className="mb-6">
-                <h2 className="text-xl font-extrabold tracking-tight">Welcome back</h2>
-                <p className="text-muted mt-1 text-sm">Sign in with your administrator account to continue.</p>
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+                  <ShieldCheck className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="text-xl font-extrabold tracking-tight">Administrator sign in</h2>
+                  <p className="text-muted mt-0.5 text-sm">Welcome back. Enter your account details.</p>
+                </div>
               </div>
               <LoginForm />
               <div className="text-muted mt-6 border-t pt-4 text-[11px] leading-relaxed" style={{ borderColor: "var(--line)" }}>

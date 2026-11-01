@@ -25,6 +25,10 @@
   --danger: #b91c1c;
   --success: #15803d;
   --indicator-active: #10b981;
+  --new-bg: #c2410c;
+  --new-ink: #ffffff;
+  --new-soft: #fff1e6;
+  --new-line: #f5b88a;
   --badge-pending-bg: #fef3c7;
   --badge-pending-ink: #92400e;
   --badge-pending-line: #fde68a;
@@ -41,33 +45,38 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e151e;
-  --card: #1a2635;
-  --elevated: #202f42;
-  --ink: #f4f1e8;
-  --muted: #cbd5e1;
-  --line: #52667d;
-  --line-strong: #7c91a8;
-  --field-bg: #121c28;
-  --sidebar-bg: #11263b;
-  --sidebar-ink: #f4f1e8;
-  --academic-blue: #7db4e6;
-  --accent-fill: #2f6491;
-  --accent-gold: #e6cb55;
-  --danger: #f87171;
-  --success: #4ade80;
-  --badge-pending-bg: #423719;
-  --badge-pending-ink: #f3d98b;
-  --badge-pending-line: #6f5929;
-  --badge-approved-bg: #1b3a2a;
-  --badge-approved-ink: #9fe0b3;
-  --badge-approved-line: #2e5e42;
-  --badge-rejected-bg: #402b30;
-  --badge-rejected-ink: #f2aab3;
-  --badge-rejected-line: #694047;
-  --badge-printed-bg: #1c334a;
-  --badge-printed-ink: #a8d2f5;
-  --badge-printed-line: #315273;
+  --bg: #0f141b;
+  --card: #161d27;
+  --elevated: #1c2531;
+  --ink: #e4e9f0;
+  --muted: #a5b1c2;
+  --line: #2b3646;
+  --line-strong: #3f4e63;
+  --field-bg: #111821;
+  --sidebar-bg: #0b1017;
+  --sidebar-ink: #e4e9f0;
+  --academic-blue: #82b4ea;
+  --accent-fill: #3a73ae;
+  --accent-gold: #dfc062;
+  --danger: #f2868b;
+  --success: #62d08c;
+  --indicator-active: #4fc79a;
+  --new-bg: #f0974e;
+  --new-ink: #1c1208;
+  --new-soft: rgba(240, 151, 78, 0.16);
+  --new-line: rgba(240, 151, 78, 0.45);
+  --badge-pending-bg: #352f1c;
+  --badge-pending-ink: #ecd68f;
+  --badge-pending-line: #5f5230;
+  --badge-approved-bg: #17332a;
+  --badge-approved-ink: #9fdcb7;
+  --badge-approved-line: #2a5642;
+  --badge-rejected-bg: #38242b;
+  --badge-rejected-ink: #f0a9b3;
+  --badge-rejected-line: #62404a;
+  --badge-printed-bg: #182f47;
+  --badge-printed-ink: #a9d0f3;
+  --badge-printed-line: #2d4f73;
 }
 
 html {
@@ -139,44 +148,50 @@ html[data-typeface="montserrat"] { --app-font: "Montserrat Variable", Montserrat
 .admin-main {
   flex: 1 0 auto;
   padding-top: var(--d-main-y);
-  padding-bottom: calc(var(--d-main-y) + 52px);
+  padding-bottom: var(--d-main-y);
 }
 @media (min-width: 1024px) {
   .admin-main {
     padding-top: var(--d-main-y-lg);
-    padding-bottom: calc(var(--d-main-y-lg) + 56px);
+    padding-bottom: var(--d-main-y-lg);
   }
 }
 
-/* Twilight: a softer, lower-contrast dark theme for long sessions. */
+/* Twilight: an indigo dusk theme — softer, lower-glare surfaces with warm amber accents (complementary to the blue). */
 html[data-theme="twilight"] {
   color-scheme: dark;
-  --bg: #232a36;
-  --card: #313b4a;
-  --elevated: #384454;
-  --ink: #f1f4f9;
-  --muted: #d0d8e3;
-  --line: #66758a;
-  --line-strong: #8a99ad;
-  --field-bg: #29313d;
-  --sidebar-bg: #1d2431;
-  --sidebar-ink: #f1f4f9;
-  --academic-blue: #86b9ea;
-  --accent-fill: #3a6d9a;
-  --danger: #f59a9a;
-  --success: #86e0a3;
-  --badge-pending-bg: #4a4129;
-  --badge-pending-ink: #f1dc9c;
-  --badge-pending-line: #7a6a3b;
-  --badge-approved-bg: #2a4636;
-  --badge-approved-ink: #aee6c0;
-  --badge-approved-line: #437058;
-  --badge-rejected-bg: #4a343a;
-  --badge-rejected-ink: #f4b6bd;
-  --badge-rejected-line: #77515a;
-  --badge-printed-bg: #2b4157;
-  --badge-printed-ink: #b4d8f6;
-  --badge-printed-line: #46637f;
+  --bg: #1e2233;
+  --card: #272e46;
+  --elevated: #2e3652;
+  --ink: #e9ecf5;
+  --muted: #b3bcd3;
+  --line: #3e4866;
+  --line-strong: #566290;
+  --field-bg: #222840;
+  --sidebar-bg: #181b2a;
+  --sidebar-ink: #e9ecf5;
+  --academic-blue: #93b8f2;
+  --accent-fill: #4a6fb5;
+  --accent-gold: #e8c86a;
+  --danger: #f4949b;
+  --success: #7fd8a0;
+  --indicator-active: #6fd3b0;
+  --new-bg: #f4a261;
+  --new-ink: #1f1408;
+  --new-soft: rgba(244, 162, 97, 0.17);
+  --new-line: rgba(244, 162, 97, 0.48);
+  --badge-pending-bg: #3d3a2e;
+  --badge-pending-ink: #f0dc9e;
+  --badge-pending-line: #6b5f3a;
+  --badge-approved-bg: #24403a;
+  --badge-approved-ink: #a6e3c0;
+  --badge-approved-line: #3b6b5c;
+  --badge-rejected-bg: #44293a;
+  --badge-rejected-ink: #f5b3be;
+  --badge-rejected-line: #74435a;
+  --badge-printed-bg: #2a3a63;
+  --badge-printed-ink: #bcd0fa;
+  --badge-printed-line: #46598f;
 }
 
 /* High contrast: maximum text/background separation and stronger borders. */
@@ -288,33 +303,38 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
-    --bg: #0e151e;
-    --card: #1a2635;
-    --elevated: #202f42;
-    --ink: #f4f1e8;
-    --muted: #cbd5e1;
-    --line: #52667d;
-    --line-strong: #7c91a8;
-    --field-bg: #121c28;
-    --sidebar-bg: #11263b;
-    --sidebar-ink: #f4f1e8;
-    --academic-blue: #7db4e6;
-    --accent-fill: #2f6491;
-    --accent-gold: #e6cb55;
-    --danger: #f87171;
-    --success: #4ade80;
-    --badge-pending-bg: #423719;
-    --badge-pending-ink: #f3d98b;
-    --badge-pending-line: #6f5929;
-    --badge-approved-bg: #1b3a2a;
-    --badge-approved-ink: #9fe0b3;
-    --badge-approved-line: #2e5e42;
-    --badge-rejected-bg: #402b30;
-    --badge-rejected-ink: #f2aab3;
-    --badge-rejected-line: #694047;
-    --badge-printed-bg: #1c334a;
-    --badge-printed-ink: #a8d2f5;
-    --badge-printed-line: #315273;
+    --bg: #0f141b;
+    --card: #161d27;
+    --elevated: #1c2531;
+    --ink: #e4e9f0;
+    --muted: #a5b1c2;
+    --line: #2b3646;
+    --line-strong: #3f4e63;
+    --field-bg: #111821;
+    --sidebar-bg: #0b1017;
+    --sidebar-ink: #e4e9f0;
+    --academic-blue: #82b4ea;
+    --accent-fill: #3a73ae;
+    --accent-gold: #dfc062;
+    --danger: #f2868b;
+    --success: #62d08c;
+    --indicator-active: #4fc79a;
+    --new-bg: #f0974e;
+    --new-ink: #1c1208;
+    --new-soft: rgba(240, 151, 78, 0.16);
+    --new-line: rgba(240, 151, 78, 0.45);
+    --badge-pending-bg: #352f1c;
+    --badge-pending-ink: #ecd68f;
+    --badge-pending-line: #5f5230;
+    --badge-approved-bg: #17332a;
+    --badge-approved-ink: #9fdcb7;
+    --badge-approved-line: #2a5642;
+    --badge-rejected-bg: #38242b;
+    --badge-rejected-ink: #f0a9b3;
+    --badge-rejected-line: #62404a;
+    --badge-printed-bg: #182f47;
+    --badge-printed-ink: #a9d0f3;
+    --badge-printed-line: #2d4f73;
   }
 }
 
@@ -1038,19 +1058,20 @@ a.pager-btn:active { transform: scale(0.96); }
   width: min(220px, 62%);
   min-width: 168px;
   height: 38px;
-  transform: translateY(50%);
+  transform: translateY(calc(100% - 1px));
   border: 1px solid var(--line);
-  border-radius: 13px 13px 50% 50% / 13px 13px 100% 100%;
-  background: var(--elevated);
+  border-top: 0;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: var(--card);
   color: var(--muted);
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03), inset 0 5px 9px -7px rgba(15, 23, 42, 0.5);
+  box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.06);
   transition: color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 .ax-drop:hover {
   color: var(--academic-blue);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), inset 0 5px 9px -7px rgba(15, 23, 42, 0.3);
+  background: var(--elevated);
 }
 .ax-drop:focus-visible {
   outline: 2px solid var(--academic-blue);
@@ -1122,6 +1143,24 @@ a.pager-btn:active { transform: scale(0.96); }
   color: var(--dash-accent, var(--academic-blue));
   background: color-mix(in srgb, var(--dash-accent, var(--academic-blue)) 14%, var(--card));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dash-accent, var(--academic-blue)) 24%, transparent);
+}
+.global-search-input::-webkit-search-cancel-button,
+.global-search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+.global-search-input { text-overflow: ellipsis; }
+.attention-ping {
+  background: color-mix(in srgb, var(--st-pending) 35%, transparent);
+  animation: attention-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes attention-ping {
+  0% { transform: scale(1); opacity: 0.8; }
+  80%, 100% { transform: scale(1.7); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attention-ping { animation: none; display: none; }
 }
 .dash-empty {
   display: flex;
@@ -1671,18 +1710,73 @@ a.pager-btn:active { transform: scale(0.96); }
   justify-content: center;
   border-radius: 999px;
   padding: 0 6px;
-  background: #dc2626;
-  color: #ffffff;
+  background: var(--new-bg);
+  color: var(--new-ink);
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 0 0 2px var(--card);
+  box-shadow: 0 0 0 2px var(--sidebar-bg, var(--card));
   animation: badge-pop 0.25s ease-out;
 }
 @keyframes badge-pop {
   from { transform: scale(0.6); }
   to { transform: scale(1); }
+}
+
+/* Page count indicator + live "new records" chip share one consistent colour system:
+   neutral/teal = total on record, warm amber = something new to look at. */
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--elevated);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+.count-dot {
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: var(--indicator-active);
+}
+.new-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--new-line);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: var(--new-soft);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  animation: new-chip-in 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.new-chip svg { color: var(--new-bg); }
+.new-chip:hover { border-color: var(--new-bg); }
+@keyframes new-chip-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Theme switch: a smooth cross-fade of the whole page (View Transitions), with a transition fallback. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+html[data-theme-anim] *,
+html[data-theme-anim] *::before,
+html[data-theme-anim] *::after {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, fill 0.4s ease, stroke 0.4s ease, box-shadow 0.4s ease !important;
 }
 .admin-context-pill {
   display: flex;
@@ -2136,39 +2230,28 @@ html[data-theme="dark"] .btn-signout:hover:not(:disabled) {
   --admin-footer-h: 36px;
 }
 .admin-footer {
-  position: fixed;
-  bottom: 0;
-  left: var(--sb-w, 288px);
-  right: 0;
-  height: var(--admin-footer-h);
-  z-index: 35;
+  position: static;
+  flex: 0 0 auto;
+  min-height: var(--admin-footer-h);
   border-top: 1px solid var(--line);
-  padding: 0 16px;
-  background: color-mix(in srgb, var(--card) 95%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  background: var(--card);
   color: var(--muted);
   font-size: 11.5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.15s ease;
   user-select: none;
-}
-@media (max-width: 900px) {
-  .admin-footer {
-    left: 0;
-  }
 }
 .admin-footer-inner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 4px 12px;
   max-width: 1280px;
   width: 100%;
   font-weight: 500;
-  white-space: nowrap;
 }
 .admin-footer-item {
   display: inline-flex;
@@ -2176,20 +2259,14 @@ html[data-theme="dark"] .btn-signout:hover:not(:disabled) {
   gap: 6px;
 }
 .admin-footer-address {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 650px;
-  white-space: nowrap;
+  min-width: 0;
 }
 .admin-footer-sep {
   color: var(--line-strong);
   opacity: 0.6;
 }
 @media (max-width: 640px) {
-  .admin-footer-address {
-    display: none;
-  }
-  .admin-footer-sep:first-of-type {
+  .admin-footer-sep {
     display: none;
   }
 }

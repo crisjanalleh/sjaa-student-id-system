@@ -1,4 +1,5 @@
 import { asc, desc, sql } from "drizzle-orm";
+import CountIndicator from "@/components/live-sync";
 import { ChevronRight, QrCode } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
@@ -68,10 +69,7 @@ export default async function QrPage({
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
-            {Number(total)} Code{Number(total) === 1 ? "" : "s"}
-          </div>
+          <CountIndicator section="qr" total={Number(total)} singular="Code" />
         </div>
       </div>
 

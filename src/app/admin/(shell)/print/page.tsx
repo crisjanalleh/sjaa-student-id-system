@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, isNull, notExists, sql } from "drizzle-orm";
-import { CalendarClock, ChevronRight, Printer } from "lucide-react";
+import CountIndicator from "@/components/live-sync";
+import { ArrowDownWideNarrow, CalendarClock, ChevronRight, Printer } from "lucide-react";
 import QuickTip from "@/components/quick-tip";
 import Link from "next/link";
 import { db } from "@/db";
@@ -98,10 +99,7 @@ export default async function PrintSelectPage({
             </p>
           </div>
 
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
-            {Number(totalApproved)} Ready to Print
-          </div>
+          <CountIndicator section="print" total={Number(totalApproved)} singular="Ready to Print" plural="Ready to Print" />
         </div>
 
         <QuickTip
@@ -126,7 +124,7 @@ export default async function PrintSelectPage({
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3 py-1 text-xs font-semibold text-[var(--ink)] no-underline transition-colors hover:border-[var(--academic-blue)]"
           >
             {dateOrder === "newest" ? "Newest first" : "Oldest first"}
-            <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
+            <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
           </ListLink>
         </div>
         {recentBatches.length === 0 ? (
@@ -150,7 +148,7 @@ export default async function PrintSelectPage({
                   <th>Created By</th>
                   <th>Created / Printed</th>
                   <th>Progress</th>
-                  <th className="!text-right">Output</th>
+                  <th className="!text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,7 +168,7 @@ export default async function PrintSelectPage({
                     </td>
                     <td className="!text-right">
                       <Link href={`/admin/print/${batch.id}`} className="btn btn-outline btn-sm" target="_blank">
-                        View / Print
+                        <Printer className="h-3.5 w-3.5" aria-hidden /> Print
                       </Link>
                     </td>
                   </tr>

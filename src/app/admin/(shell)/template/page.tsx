@@ -8,6 +8,7 @@ import { getTemplateConfig } from "@/lib/template";
 import { ChevronRight, IdCard } from "lucide-react";
 import Link from "next/link";
 import QuickTip from "@/components/quick-tip";
+import { StatusPill } from "@/components/live-sync";
 import TemplateEditor from "./template-editor";
 
 export const dynamic = "force-dynamic";
@@ -54,10 +55,7 @@ export default async function TemplatePage() {
             </p>
           </div>
 
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full" style={{ background: "var(--st-approved)" }} />
-            Active version v{row.version}
-          </div>
+          <StatusPill tone="active">Active version v{row.version}</StatusPill>
         </div>
 
         <p className="text-muted text-xs">

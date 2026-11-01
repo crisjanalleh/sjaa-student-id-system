@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, LockKeyhole, TriangleAlert } from "lucide-react";
+import { Eye, EyeOff, Loader2, LockKeyhole, LogIn, TriangleAlert, User } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 export default function LoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,15 +40,10 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} noValidate>
-      <h2 className="mb-5 flex items-center gap-2 text-base font-bold">
-        <LockKeyhole className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
-        Administrator Sign In
-      </h2>
-
       {error && (
         <div
-          className="mb-4 flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm"
-          style={{ borderColor: "var(--danger)" }}
+          className="mb-4 flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm"
+          style={{ borderColor: "var(--danger)", background: "color-mix(in srgb, var(--danger) 8%, transparent)" }}
           role="alert"
         >
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--danger)" }} aria-hidden />
@@ -59,29 +55,46 @@ export default function LoginForm() {
         <label className="lbl" htmlFor="login_username">
           Username
         </label>
-        <input
-          id="login_username"
-          className="inp"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          autoFocus
-          maxLength={64}
-        />
+        <div className="relative">
+          <User className="text-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden />
+          <input
+            id="login_username"
+            className="inp !pl-10"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoFocus
+            maxLength={64}
+            placeholder="Enter your username"
+          />
+        </div>
       </div>
-      <div className="mb-5">
+      <div className="mb-6">
         <label className="lbl" htmlFor="login_password">
           Password
         </label>
-        <input
-          id="login_password"
-          type="password"
-          className="inp"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          maxLength={128}
-        />
+        <div className="relative">
+          <LockKeyhole className="text-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden />
+          <input
+            id="login_password"
+            type={showPassword ? "text" : "password"}
+            className="inp !pl-10 !pr-11"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            maxLength={128}
+            placeholder="Enter your password"
+          />
+          <button
+            type="button"
+            className="text-muted absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition-colors hover:text-[var(--ink)]"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+          </button>
+        </div>
       </div>
       <button type="submit" className="btn btn-primary w-full !py-2.5" disabled={submitting}>
         {submitting ? (
@@ -89,7 +102,9 @@ export default function LoginForm() {
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Verifying…
           </>
         ) : (
-          "Sign In"
+          <>
+            <LogIn className="h-4 w-4" aria-hidden /> Sign In
+          </>
         )}
       </button>
     </form>

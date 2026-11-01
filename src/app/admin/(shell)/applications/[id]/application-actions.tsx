@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   Ban,
   CheckCircle2,
+  ClipboardCheck,
   IdCard,
   ImageUp,
   Loader2,
@@ -160,23 +161,28 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto, ap
   };
 
   return (
-    <section className="card mt-5 p-4">
-      <h2 className="lbl !mb-3">Actions</h2>
+    <section className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4" aria-label="Application actions">
+      <h2 className="flex items-center gap-2 text-sm font-bold">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+          <ClipboardCheck className="h-4 w-4" aria-hidden />
+        </span>
+        Actions
+      </h2>
 
       {error && (
-        <div className="mb-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--danger)" }} role="alert">
+        <div className="flex basis-full items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--danger)" }} role="alert">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--danger)" }} aria-hidden />
           <span>{error}</span>
         </div>
       )}
       {warning && (
-        <div className="mb-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--accent-gold)", background: "color-mix(in srgb, var(--accent-gold) 14%, var(--card))", color: "var(--ink)" }} role="status">
+        <div className="flex basis-full items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--accent-gold)", background: "color-mix(in srgb, var(--accent-gold) 14%, var(--card))", color: "var(--ink)" }} role="status">
           <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <span>{warning}</span>
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
         {status === "claimed" && (
           <span className="text-muted inline-flex items-center gap-1.5 text-xs" role="status">
             <CheckCircle2 className="h-4 w-4" style={{ color: "var(--success)" }} aria-hidden />
@@ -241,7 +247,7 @@ export default function ApplicationActions({ id, status, csrfToken, hasPhoto, ap
         aria-label="Upload replacement photo"
       />
       {status === "rejected" && (
-        <p className="text-muted mt-3 text-xs leading-relaxed">
+        <p className="text-muted basis-full text-xs leading-relaxed">
           The student has been asked to bring a replacement photo to the office. Upload it
           here to return the application to <strong>Pending</strong> for re-review.
           {!hasPhoto && " (No photo is currently on file.)"}

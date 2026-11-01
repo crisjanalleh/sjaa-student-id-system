@@ -7,12 +7,14 @@ import {
   ImageUp,
   Loader2,
   PenLine,
+  Phone,
   Printer,
   QrCode,
   RefreshCw,
   ShieldCheck,
   TimerReset,
   TriangleAlert,
+  UserRound,
   X,
   ZoomIn,
 } from "lucide-react";
@@ -36,6 +38,41 @@ const IDLE_WARNING_MS = 27 * 60 * 1000;
 const PING_EVERY_MS = 60 * 1000;
 const CROP_W = 300;
 const CROP_H = 400;
+
+function SectionHeader({
+  step,
+  title,
+  description,
+  Icon,
+  badge,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  Icon: typeof UserRound;
+  badge?: string;
+}) {
+  return (
+    <div className="mb-5 flex items-start gap-3 border-b pb-4" style={{ borderColor: "var(--line)" }}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--academic-blue)]">Step {step} of 4</p>
+        <h2 className="text-base font-extrabold tracking-tight text-[var(--ink)]">{title}</h2>
+        <p className="text-muted mt-0.5 text-xs leading-relaxed">{description}</p>
+      </div>
+      {badge && (
+        <span
+          className="shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-bold"
+          style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Canvas crop editor (native Canvas only — zero extra dependencies)
@@ -661,13 +698,22 @@ export default function ApplyForm({
             </div>
           </div>
         </div>
-        <section className="mt-4 rounded-md border px-4 py-3" style={{ borderColor: "var(--line)", background: "var(--card)" }} aria-label="What to prepare">
-          <h2 className="text-xs font-bold">Before you begin</h2>
-          <ul className="text-muted mt-2 grid gap-2 text-xs leading-relaxed sm:grid-cols-3 sm:gap-4">
-            <li>Have your Student ID / LRN, current grade level, and an email address you can access ready.</li>
-            <li>Prepare a recent, clear JPG or PNG photo (maximum 5 MB).</li>
-            <li>Your email is required so the school can send application updates.</li>
-          </ul>
+        <section className="mt-4 rounded-2xl border px-4 py-4" style={{ borderColor: "var(--line)", background: "var(--card)" }} aria-label="What to prepare">
+          <h2 className="text-sm font-bold">Before you begin, have these ready</h2>
+          <ol className="mt-3 grid gap-3 text-xs leading-relaxed sm:grid-cols-3">
+            {[
+              "Your Student ID / LRN, grade level and an email address you can open.",
+              "A recent, clear JPG or PNG photo (up to 5 MB) with a plain background.",
+              "About 5 minutes. The form closes after 30 minutes of no activity.",
+            ].map((text, i) => (
+              <li key={text} className="flex items-start gap-2.5">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--academic-blue)]/12 text-[11px] font-bold text-[var(--academic-blue)]">
+                  {i + 1}
+                </span>
+                <span className="text-muted">{text}</span>
+              </li>
+            ))}
+          </ol>
         </section>
       </div>
 
@@ -684,9 +730,12 @@ export default function ApplyForm({
 
       {/* --- Student information --- */}
       <section className="card mb-5 p-5">
-        <h2 className="mb-4 border-b pb-2 text-sm font-bold uppercase tracking-wide" style={{ borderColor: "var(--line)" }}>
-          1 · Student Information
-        </h2>
+        <SectionHeader
+          step={1}
+          Icon={UserRound}
+          title="Student information"
+          description="Tell us who you are exactly as it appears on your school records."
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           {field("studentIdNumber", "Student ID / LRN Number", {
             required: true,
@@ -775,9 +824,12 @@ export default function ApplyForm({
 
       {/* --- Contact & emergency --- */}
       <section className="card mb-5 p-5">
-        <h2 className="mb-4 border-b pb-2 text-sm font-bold uppercase tracking-wide" style={{ borderColor: "var(--line)" }}>
-          2 · Contact &amp; Emergency Details
-        </h2>
+        <SectionHeader
+          step={2}
+          Icon={Phone}
+          title="Contact & emergency details"
+          description="We use your email for updates and the emergency contact is printed on the back of your ID."
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           {field("email", "Student Email Address", {
             type: "email",
@@ -810,13 +862,16 @@ export default function ApplyForm({
 
       {/* --- Photo --- */}
       <section className="card mb-5 p-5">
-        <h2 className="mb-1 border-b pb-2 text-sm font-bold uppercase tracking-wide" style={{ borderColor: "var(--line)" }}>
-          3 · ID Photo &amp; Signature <span style={{ color: "var(--danger)" }}>* Required</span>
-        </h2>
-        <p className="text-muted mb-4 mt-3 text-xs leading-relaxed">
-          Provide a recent photo against a plain background. A photo is required for your ID. JPG or PNG, maximum{" "}
-          {MAX_PHOTO_MB} MB. You can take a photo with your camera or upload one from
-          your device, then crop it before submitting.
+        <SectionHeader
+          step={3}
+          Icon={Camera}
+          title="ID photo & signature"
+          description="Both are printed on your ID."
+          badge="Required"
+        />
+        <p className="text-muted mb-4 text-xs leading-relaxed">
+          Use a recent photo with a plain background (JPG or PNG, up to {MAX_PHOTO_MB} MB). Take one with your camera or
+          upload from your device, then crop it before submitting.
         </p>
         <div className="flex flex-col items-start gap-4 sm:flex-row">
           <div
@@ -890,10 +945,12 @@ export default function ApplyForm({
 
       {/* --- Privacy & consent --- */}
       <section className="card mb-6 p-5">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide">
-          <ShieldCheck className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
-          Privacy Notice
-        </h2>
+        <SectionHeader
+          step={4}
+          Icon={ShieldCheck}
+          title="Privacy & confirmation"
+          description="Read the notice, then confirm to submit."
+        />
         <p className="text-muted text-xs leading-relaxed">{privacyNotice}</p>
         <label className="mt-4 flex cursor-pointer items-start gap-3 text-sm">
           <input

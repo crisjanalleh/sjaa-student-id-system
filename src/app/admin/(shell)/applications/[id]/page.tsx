@@ -1,9 +1,12 @@
 import { and, desc, eq, isNull, or } from "drizzle-orm";
 import {
-  ArrowLeft,
   Camera,
+  ChevronRight,
   ClipboardList,
+  Clock,
   ImageOff,
+  Mail,
+  Phone,
   ScrollText,
   TriangleAlert,
   User,
@@ -88,41 +91,72 @@ export default async function ApplicationDetailPage({
     .orderBy(desc(notificationLogs.createdAt))
     .limit(20);
 
-  const info = (label: string, value: React.ReactNode) => (
+  const info = (label: string, value: React.ReactNode, wide = false) => (
+    <div className={`rounded-xl border border-[var(--line)] bg-[var(--bg)]/50 px-3.5 py-2.5 ${wide ? "sm:col-span-2" : ""}`}>
+      <dt className="text-muted text-[10.5px] font-bold uppercase tracking-wider">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-[var(--ink)]">{value || <span className="text-muted font-normal">—</span>}</dd>
+    </div>
+  );
+  const group = (title: string, Icon: typeof User, children: React.ReactNode) => (
     <div>
-      <dt className="lbl !mb-0.5">{label}</dt>
-      <dd className="text-sm font-medium">{value || <span className="text-muted">—</span>}</dd>
+      <h3 className="text-muted mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider">
+        <Icon className="h-3.5 w-3.5" aria-hidden /> {title}
+      </h3>
+      <dl className="grid gap-2.5 sm:grid-cols-2">{children}</dl>
     </div>
   );
 
   return (
-    <div>
-      <Link href="/admin/applications" className="text-muted mb-4 inline-flex items-center gap-1.5 text-xs font-semibold no-underline hover:underline">
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to queue
-      </Link>
+    <div className="mx-auto max-w-7xl space-y-6 pb-12">
+      <div className="space-y-2">
+        <nav className="flex items-center gap-1.5 text-xs font-medium text-muted" aria-label="Breadcrumb">
+          <Link href="/admin" className="transition-colors hover:text-[var(--ink)]">Dashboard</Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <Link href="/admin/applications" className="transition-colors hover:text-[var(--ink)]">Applications</Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="font-semibold text-[var(--ink)]">{app.applicationCode}</span>
+        </nav>
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 font-mono text-xl font-extrabold tracking-tight">
-            <ClipboardList className="h-5 w-5 shrink-0" style={{ color: "var(--academic-blue)" }} aria-hidden />
-            {app.applicationCode}
-          </h1>
-          <p className="text-muted text-xs">
-            Submitted {formatDateTime(app.createdAt)}
-            {app.reviewedAt && ` · Reviewed ${formatDateTime(app.reviewedAt)}${row.reviewer ? ` by ${row.reviewer.fullName}` : ""}`}
-          </p>
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-[var(--ink)]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--academic-blue)]/12 text-[var(--academic-blue)] shadow-xs ring-1 ring-[var(--academic-blue)]/20">
+                <ClipboardList className="h-5 w-5" aria-hidden />
+              </span>
+              <span className="font-mono">{app.applicationCode}</span>
+            </h1>
+            <p className="text-muted mt-1 text-sm">
+              Submitted {formatDateTime(app.createdAt)}
+              {app.reviewedAt && ` · Reviewed ${formatDateTime(app.reviewedAt)}${row.reviewer ? ` by ${row.reviewer.fullName}` : ""}`}
+            </p>
+          </div>
+          <StatusBadge status={app.status} />
         </div>
-        <StatusBadge status={app.status} />
       </div>
+
+      <ApplicationActions
+        id={app.id}
+        status={app.status}
+        csrfToken={ctx.csrfToken}
+        hasPhoto={Boolean(app.photoStorageKey)}
+        applicationCode={app.applicationCode}
+        studentName={fullName(app)}
+        studentIdNumber={app.studentIdNumber}
+        batchQueued={batchQueued}
+        batchCode={batchRows[0]?.batchCode ?? null}
+      />
 
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Photo review column */}
         <div className="lg:col-span-2">
-          <section className="card p-4">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold">
-              <Camera className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
+          <section className="card overflow-hidden">
+            <h2 className="flex items-center gap-2 border-b px-4 py-3 text-sm font-bold" style={{ borderColor: "var(--line)" }}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+                <Camera className="h-3.5 w-3.5" aria-hidden />
+              </span>
               Photo Review
             </h2>
+            <div className="p-4">
             <div
               className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md border"
               style={{ borderColor: "var(--line)", background: "var(--bg)" }}
@@ -169,43 +203,54 @@ export default async function ApplicationDetailPage({
                 </div>
               </div>
             )}
+            </div>
           </section>
-
-          <ApplicationActions
-            id={app.id}
-            status={app.status}
-            csrfToken={ctx.csrfToken}
-            hasPhoto={Boolean(app.photoStorageKey)}
-            applicationCode={app.applicationCode}
-            studentName={fullName(app)}
-            studentIdNumber={app.studentIdNumber}
-            batchQueued={batchQueued}
-            batchCode={batchRows[0]?.batchCode ?? null}
-          />
         </div>
 
         {/* Details column */}
         <div className="flex flex-col gap-5 lg:col-span-3">
-          <section className="card p-4">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold">
-              <User className="h-4 w-4" style={{ color: "var(--academic-blue)" }} aria-hidden />
+          <section className="card overflow-hidden">
+            <h2 className="flex items-center gap-2 border-b px-4 py-3 text-sm font-bold" style={{ borderColor: "var(--line)" }}>
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
+                <User className="h-3.5 w-3.5" aria-hidden />
+              </span>
               Student Information
             </h2>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-              {info("Control No.", <span className="font-mono text-xs font-bold">{app.applicationCode}</span>)}
-              {info("Student ID / LRN", <span className="font-mono text-xs">{app.studentIdNumber}</span>)}
-              {info("Full Name", fullName(app))}
-              {info("Grade Level", app.gradeLevel)}
-              {info("Track / Strand", app.trackStrand)}
-              {info("Address", app.address)}
-              {info("Email", app.email ? <span className="break-all">{app.email}</span> : null)}
-              {info("Contact No.", app.contactNumber)}
-              {info("Emergency Contact", app.emergencyContactName)}
-              {info("Emergency Phone", app.emergencyContactPhone)}
-              {info("Last Updated", <span className="text-xs">{formatDateTime(app.updatedAt)}</span>)}
-              {app.printedAt && info("Printed At", <span className="text-xs">{formatDateTime(app.printedAt)}</span>)}
-              {app.claimedAt && info("ID Claimed", <span className="text-xs">{formatDateTime(app.claimedAt)}{claimAdminName ? ` · ${claimAdminName}` : ""}</span>)}
-            </dl>
+            <div className="space-y-5 p-4">
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--academic-blue)]/[0.06] px-4 py-3.5">
+                <p className="text-muted text-[10.5px] font-bold uppercase tracking-wider">Full Name</p>
+                <p className="mt-1 text-xl font-extrabold leading-tight tracking-tight text-[var(--ink)]">{fullName(app)}</p>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2 text-xs font-semibold">
+                  {app.gradeLevel && (
+                    <span className="rounded-full border border-[var(--line)] bg-[var(--card)] px-2.5 py-1">{app.gradeLevel}</span>
+                  )}
+                  {app.trackStrand && (
+                    <span className="rounded-full border border-[var(--line)] bg-[var(--card)] px-2.5 py-1">{app.trackStrand}</span>
+                  )}
+                  <span className="rounded-full border border-[var(--line)] bg-[var(--card)] px-2.5 py-1 font-mono">
+                    LRN {app.studentIdNumber}
+                  </span>
+                </div>
+              </div>
+
+              {group("Contact", Mail, <>
+                {info("Email", app.email ? <span className="break-all">{app.email}</span> : null)}
+                {info("Contact No.", app.contactNumber)}
+                {info("Address", app.address, true)}
+              </>)}
+
+              {group("Emergency Contact", Phone, <>
+                {info("Name", app.emergencyContactName)}
+                {info("Phone", app.emergencyContactPhone)}
+              </>)}
+
+              {group("Record", Clock, <>
+                {info("Control No.", <span className="font-mono text-xs font-bold">{app.applicationCode}</span>)}
+                {info("Last Updated", <span className="text-xs">{formatDateTime(app.updatedAt)}</span>)}
+                {app.printedAt && info("Printed At", <span className="text-xs">{formatDateTime(app.printedAt)}</span>)}
+                {app.claimedAt && info("ID Claimed", <span className="text-xs">{formatDateTime(app.claimedAt)}{claimAdminName ? ` · ${claimAdminName}` : ""}</span>)}
+              </>)}
+            </div>
           </section>
 
           {(app.status === "pending" || app.status === "rejected") && (

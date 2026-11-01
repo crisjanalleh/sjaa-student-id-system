@@ -1,5 +1,6 @@
 import { and, desc, asc, eq, isNull, like, or, sql, type SQL } from "drizzle-orm";
-import { ChevronRight, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
+import CountIndicator from "@/components/live-sync";
+import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
 import { studentApplications } from "@/db/schema";
@@ -101,7 +102,7 @@ export default async function ApplicationsPage({
           style={{ color: active ? "var(--academic-blue)" : undefined }}
         >
           {label}
-          {active && <span className="text-[10px]" aria-hidden>{dir === "asc" ? "▲" : "▼"}</span>}
+          {active && (dir === "asc" ? <ChevronUp className="h-3.5 w-3.5" aria-hidden /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden />)}
         </ListLink>
       </th>
     );
@@ -132,10 +133,7 @@ export default async function ApplicationsPage({
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
-            {Number(total)} Application{Number(total) === 1 ? "" : "s"}
-          </div>
+          <CountIndicator section="applications" total={Number(total)} singular="Application" />
         </div>
       </div>
 

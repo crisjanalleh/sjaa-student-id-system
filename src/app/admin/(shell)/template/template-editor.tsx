@@ -38,55 +38,19 @@ function ResponsiveCardPreview({
   }, []);
 
   return (
-    <div ref={stage} className={`flex min-w-0 justify-center overflow-hidden py-1 ${className}`} style={{ minHeight: cardHeightMm * 3.7795 * scale + 8 }}>
+    <div ref={stage} className={`flex w-full min-w-0 items-center justify-center overflow-hidden py-1 ${className}`} style={{ minHeight: cardHeightMm * 3.7795 * scale + 8 }}>
       <ScaledIdCard scale={scale} variant={variant} data={{ ...SAMPLE_CARD_DATA, gradeLevel }} template={template} />
     </div>
   );
 }
 
-function Toggle({
-  label,
-  description,
-  checked,
-  onChange,
-  id,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  id: string;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className="flex cursor-pointer items-start justify-between gap-4 rounded-md border px-3 py-2.5"
-      style={{ borderColor: "var(--line)" }}
-    >
-      <span>
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="text-muted block text-xs">{description}</span>
-      </span>
-      <span
-        className="relative mt-0.5 block shrink-0 rounded-full transition-colors"
-        style={{ width: 40, height: 22, background: checked ? "var(--academic-blue)" : "var(--line-strong)" }}
-      >
-        <input
-          id={id}
-          type="checkbox"
-          className="sr-only"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span
-          className="absolute rounded-full bg-white shadow transition-[left]"
-          style={{ top: 2, width: 18, height: 18, left: checked ? 20 : 2 }}
-          aria-hidden
-        />
-      </span>
-    </label>
-  );
-}
+// Track/strand and emergency contact are always printed on the card.
+const withFixedFields = (v: Values): Values => ({
+  ...v,
+  orientation: "portrait",
+  showTrackStrand: true,
+  showEmergencyContact: true,
+});
 
 export default function TemplateEditor({
   initial,
@@ -98,7 +62,7 @@ export default function TemplateEditor({
   csrfToken: string;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<Values>({ ...initial, orientation: "portrait" });
+  const [values, setValues] = useState<Values>(() => withFixedFields(initial));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -106,7 +70,7 @@ export default function TemplateEditor({
   const [previewLevel, setPreviewLevel] = useState<"shs" | "jhs">("shs");
   const previewGrade = previewLevel === "shs" ? "Grade 11" : "Grade 9";
   const [version, setVersion] = useState(initialVersion);
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ ...initial, orientation: "portrait" }));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(withFixedFields(initial)));
   const [staleVersion, setStaleVersion] = useState(false);
   const [adjustmentPanel, setAdjustmentPanel] = useState<"signature" | "layout" | null>(null);
   const requestInFlight = useRef(false);
@@ -229,23 +193,6 @@ export default function TemplateEditor({
             </div>
           )}
 
-          <div className="mb-4 flex flex-col gap-2.5">
-            <Toggle
-              id="tgl_track"
-              label="Track / Strand"
-              description="Show the SHS track/strand beside the grade level and on the back."
-              checked={values.showTrackStrand}
-              onChange={(v) => set("showTrackStrand", v)}
-            />
-            <Toggle
-              id="tgl_emergency"
-              label="Emergency Contact"
-              description="Show the emergency contact block on the card back."
-              checked={values.showEmergencyContact}
-              onChange={(v) => set("showEmergencyContact", v)}
-            />
-          </div>
-
           <div className="mb-4">
             <label className="lbl" htmlFor="tpl_sy">
               School Year
@@ -356,8 +303,11 @@ export default function TemplateEditor({
               <div className="overflow-hidden">
                 <div className="border-t border-[var(--line)]/50 px-4 pb-4 pt-3">
                   <p className="text-muted mb-4 text-xs leading-relaxed">
-                    Changes update the live preview after saving. The saved image keeps its original detail while being resized for display.
+                    {values.designSettings.signatorySignature
+                      ? "Changes appear instantly in the back-of-card preview. Save the template to apply them to printed cards."
+                      : "Upload a signature above to enable these adjustments."}
                   </p>
+                  <fieldset disabled={!values.designSettings.signatorySignature} className="min-w-0 disabled:opacity-50">
                   <div className="mb-4">
                     <label className="lbl flex justify-between" htmlFor="design_signature_scale">
                       <span>Signature size</span><span>{Math.round(values.designSettings.signatoryScale * 100)}%</span>
@@ -393,6 +343,7 @@ export default function TemplateEditor({
                   >
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset signature placement
                   </button>
+                  </fieldset>
                 </div>
               </div>
             </div>
@@ -414,7 +365,7 @@ export default function TemplateEditor({
               <div className="overflow-hidden">
                 <div className="border-t border-[var(--line)]/50 px-4 pb-4 pt-3">
                   <p className="text-muted mb-4 text-xs leading-relaxed">
-                    These controls adjust the front layout. Open this panel while viewing the preview; use Reset to return to the standard layout.
+                    These controls adjust the front of the card and update the preview instantly. Reset returns only these front-layout values to standard; signature placement is kept.
                   </p>
                   <div className="mb-4">
                     <label className="lbl flex justify-between" htmlFor="design_name_size">
@@ -457,7 +408,13 @@ export default function TemplateEditor({
                     <input id="design_photo_y" type="range" min="-5" max="5" step="0.5" className="w-full accent-[var(--academic-blue)]"
                       value={values.designSettings.photoOffsetY} onChange={(e) => setDesign("photoOffsetY", Number(e.target.value))} />
                   </div>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => set("designSettings", { ...DEFAULT_CARD_DESIGN, signatorySignature: values.designSettings.signatorySignature })}>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => set("designSettings", {
+                    ...DEFAULT_CARD_DESIGN,
+                    signatorySignature: values.designSettings.signatorySignature,
+                    signatoryScale: values.designSettings.signatoryScale,
+                    signatoryOffsetX: values.designSettings.signatoryOffsetX,
+                    signatoryOffsetY: values.designSettings.signatoryOffsetY,
+                  })}>
                     <RotateCcw className="h-3.5 w-3.5" aria-hidden /> Reset layout
                   </button>
                 </div>
@@ -474,7 +431,7 @@ export default function TemplateEditor({
         {/* Live preview with sample data only (no real student records). */}
         <section className="lg:col-span-3">
           <div className="card overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
+            <div className="flex flex-col gap-4 border-b border-[var(--line)] bg-[var(--card)]/60 px-5 py-3.5">
               <div>
                 <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]">
@@ -488,7 +445,7 @@ export default function TemplateEditor({
               </div>
 
               <div
-                className="flex gap-1 rounded-full border border-[var(--line)] bg-[var(--elevated)] p-1"
+                className="mx-auto flex gap-1 rounded-full border border-[var(--line)] bg-[var(--elevated)] p-1"
                 role="group"
                 aria-label="Preview level"
               >
@@ -519,20 +476,19 @@ export default function TemplateEditor({
                   ] as const
                 ).map((face) => (
                   <figure key={face.variant} className="id-preview-tile">
-                    {/* Placeholder slot to keep previews level */}
-                    <div className="flex min-h-2 items-center justify-center" aria-hidden="true" />
-                    
                     <figcaption className="flex flex-wrap items-center justify-between gap-2">
                       <span className="id-preview-chip">{face.label}</span>
                       <span className="text-muted text-[11px]">{face.hint}</span>
                     </figcaption>
-                    <ResponsiveCardPreview
-                      key={face.variant === "front" ? `${face.variant}-${previewLevel}` : face.variant}
-                      variant={face.variant}
-                      template={values}
-                      gradeLevel={previewGrade}
-                      className={face.variant === "front" ? "id-preview-swap" : ""}
-                    />
+                    <div className="flex flex-1 items-center justify-center">
+                      <ResponsiveCardPreview
+                        key={`${face.variant}-${previewLevel}`}
+                        variant={face.variant}
+                        template={values}
+                        gradeLevel={previewGrade}
+                        className="id-preview-swap"
+                      />
+                    </div>
                   </figure>
                 ))}
               </div>

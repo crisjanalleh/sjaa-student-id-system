@@ -5,6 +5,7 @@ import { studentApplications } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { config } from "@/lib/config";
 import { hashIp, newApplicationCode } from "@/lib/crypto";
+import { IntakeBusyError, withIntakeSlot } from "@/lib/intake-gate";
 import { csrfOk, getFormContext } from "@/lib/auth";
 import { PhotoError, deletePhoto, processStudentPhoto } from "@/lib/photos";
 import { cleanupRateLimits, rateLimitHit, rateLimitPeek } from "@/lib/rate-limit";
@@ -26,6 +27,13 @@ const DUPLICATE_MESSAGE =
 
 function json(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status });
+}
+
+function busy() {
+  return NextResponse.json(
+    { ok: false, error: "Many students are submitting right now. Please wait a few seconds and press Submit again — your details are kept." },
+    { status: 503, headers: { "Retry-After": "10" } },
+  );
 }
 
 export async function POST(req: Request) {
@@ -167,10 +175,11 @@ export async function POST(req: Request) {
   }
   let studentSignatureDataUrl: string;
   try {
-    studentSignatureDataUrl = await processStudentSignature(
-      Buffer.from(signatureValue.slice(signatureValue.indexOf(",") + 1), "base64"),
+    studentSignatureDataUrl = await withIntakeSlot(() =>
+      processStudentSignature(Buffer.from(signatureValue.slice(signatureValue.indexOf(",") + 1), "base64")),
     );
   } catch (err) {
+    if (err instanceof IntakeBusyError) return busy();
     await countFailure();
     return json(422, {
       ok: false,
@@ -199,9 +208,10 @@ export async function POST(req: Request) {
     }
     try {
       const buffer = Buffer.from(await photo.arrayBuffer());
-      const processed = await processStudentPhoto({ buffer, byteLength: buffer.length });
+      const processed = await withIntakeSlot(() => processStudentPhoto({ buffer, byteLength: buffer.length }));
       photoKey = processed.storageKey;
     } catch (err) {
+      if (err instanceof IntakeBusyError) return busy();
       if (err instanceof PhotoError) {
         return json(err.status, { ok: false, error: "", errors: { photo: err.message } });
       }

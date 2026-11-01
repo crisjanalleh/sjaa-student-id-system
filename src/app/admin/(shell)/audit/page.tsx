@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
-import { CalendarDays, ChevronRight, Filter, ScrollText, Search, Tag, X } from "lucide-react";
+import CountIndicator from "@/components/live-sync";
+import { ArrowDownWideNarrow, CalendarDays, ChevronRight, Filter, ScrollText, Search, Tag, X } from "lucide-react";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
@@ -110,10 +111,7 @@ export default async function AuditLogsPage({
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
-            {Number(total)} Event{Number(total) === 1 ? "" : "s"}
-          </div>
+          <CountIndicator section="audit" total={Number(total)} singular="Event" />
         </div>
       </div>
 
@@ -201,7 +199,7 @@ export default async function AuditLogsPage({
                       className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
                       Timestamp
-                      <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
+                      <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
                     </ListLink>
                   </th>
                   <th>Actor</th>

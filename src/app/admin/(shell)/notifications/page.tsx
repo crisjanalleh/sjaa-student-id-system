@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
-import { Bell, BellOff, ChevronRight, Filter, Search, Tag, X } from "lucide-react";
+import CountIndicator from "@/components/live-sync";
+import { ArrowDownWideNarrow, Bell, BellOff, Check, ChevronRight, Filter, Search, Tag, X } from "lucide-react";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
@@ -106,10 +107,7 @@ export default async function NotificationsPage({
             </p>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3.5 py-1.5 text-xs font-semibold text-[var(--ink)] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[var(--indicator-active)]" />
-            {Number(total)} Notification{Number(total) === 1 ? "" : "s"}
-          </div>
+          <CountIndicator section="notifications" total={Number(total)} singular="Notification" />
         </div>
       </div>
 
@@ -187,7 +185,7 @@ export default async function NotificationsPage({
                       className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
                       Created
-                      <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
+                      <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
                     </ListLink>
                   </th>
                   <th className="!text-right">Action</th>
@@ -237,7 +235,7 @@ export default async function NotificationsPage({
                         <span className="text-muted text-xs">Queued or sending — refresh to check status</span>
                       ) : (
                         <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs font-semibold" style={{ color: "var(--success)" }}>
-                          <span aria-hidden>✓</span> No action needed
+                          <Check className="h-3.5 w-3.5" aria-hidden /> No action needed
                         </span>
                       )}
                     </td>

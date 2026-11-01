@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { LiveSyncContext } from "@/components/live-sync";
 import { SCHOOL } from "@/lib/config";
 import DisplayPreferences from "@/components/display-preferences";
 import SjaaLogo from "@/components/sjaa-logo";
@@ -35,14 +36,15 @@ import type { UnreadCounts, UnreadSection } from "@/lib/unread";
 const NAV: { href: string; label: string; icon: LucideIcon; exact: boolean; unread?: UnreadSection }[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/applications", label: "Applications", icon: Inbox, exact: false, unread: "applications" },
-  { href: "/admin/print", label: "Batch Print", icon: Printer, exact: false },
+  { href: "/admin/print", label: "Batch Print", icon: Printer, exact: false, unread: "print" },
   { href: "/admin/template", label: "ID Template", icon: IdCard, exact: false },
-  { href: "/admin/qr", label: "QR Codes", icon: QrCode, exact: false },
+  { href: "/admin/qr", label: "QR Codes", icon: QrCode, exact: false, unread: "qr" },
   { href: "/admin/notifications", label: "Notifications", icon: Bell, exact: false, unread: "notifications" },
-  { href: "/admin/audit", label: "Audit Trail", icon: ScrollText, exact: false },
+  { href: "/admin/audit", label: "Audit Trail", icon: ScrollText, exact: false, unread: "audit" },
 ];
 
-const UNREAD_POLL_MS = 4_000;
+const UNREAD_KEYS = ["applications", "print", "qr", "notifications", "audit"] as const;
+const UNREAD_POLL_MS = 3_000;
 const COLLAPSE_KEY = "sjaa-sidebar-collapsed";
 const collapseListeners = new Set<() => void>();
 
@@ -133,43 +135,84 @@ export default function AdminShell({
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [signOutOpen, loggingOut]);
 
-  // Opening a section marks it read; while it stays open, new arrivals refresh the page and are marked read too.
+  // Entering a section marks it read (its list was just rendered). Arrivals after that raise the
+  // badge and the page's "new" chip until the admin views them or reopens the section.
+  const markSeen = useCallback(
+    async (section: UnreadSection) => {
+      const response = await fetch("/api/admin/unread", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
+        body: JSON.stringify({ section }),
+      });
+      const data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
+      if (response.ok && data.counts) setUnread(data.counts);
+    },
+    [csrfToken],
+  );
+
+  const viewNew = useCallback(
+    async (section: UnreadSection) => {
+      try {
+        await markSeen(section);
+        router.refresh();
+      } catch {
+        /* offline: keep the indicator so it can be retried */
+      }
+    },
+    [markSeen, router],
+  );
+
+  useEffect(() => {
+    if (!activeSection) return;
+    const section = activeSection;
+    void (async () => {
+      try {
+        await markSeen(section);
+      } catch {
+        /* offline: the badge simply stays until the next visit */
+      }
+    })();
+  }, [activeSection, markSeen]);
+
+  // Light polling that backs off on errors and idles while the tab is hidden.
   useEffect(() => {
     let stopped = false;
-    async function sync(refreshIfNew: boolean) {
-      try {
-        let response = await fetch("/api/admin/unread", { cache: "no-store" });
-        let data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
-        if (!response.ok || !data.counts || stopped) return;
-        if (activeSection && (!refreshIfNew || data.counts[activeSection] > 0)) {
-          const hadNew = data.counts[activeSection] > 0;
-          response = await fetch("/api/admin/unread", {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-csrf-token": csrfToken },
-            body: JSON.stringify({ section: activeSection }),
-          });
-          data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
-          if (hadNew && refreshIfNew && !stopped) router.refresh();
+    let timer = 0;
+    let failures = 0;
+    async function tick() {
+      if (stopped) return;
+      if (document.visibilityState === "visible") {
+        try {
+          const response = await fetch("/api/admin/unread", { cache: "no-store" });
+          const data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
+          if (response.ok && data.counts && !stopped) {
+            failures = 0;
+            setUnread((prev) =>
+              UNREAD_KEYS.every((key) => prev[key] === data.counts![key]) ? prev : data.counts!,
+            );
+          } else failures++;
+        } catch {
+          failures++;
         }
-        if (data.counts && !stopped) setUnread(data.counts);
-      } catch {
-        /* offline or signed out: keep the last known counts */
       }
+      if (!stopped) timer = window.setTimeout(tick, Math.min(30_000, UNREAD_POLL_MS * 2 ** Math.min(failures, 3)));
     }
-    void sync(false);
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void sync(true);
-    }, UNREAD_POLL_MS);
+    timer = window.setTimeout(tick, UNREAD_POLL_MS);
     const onVisible = () => {
-      if (document.visibilityState === "visible") void sync(true);
+      if (document.visibilityState === "visible") {
+        window.clearTimeout(timer);
+        void tick();
+      }
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;
-      window.clearInterval(timer);
+      window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [activeSection, csrfToken, router]);
+  }, []);
+  const liveSync = useMemo(() => ({ unread, viewNew }), [unread, viewNew]);
+  const totalUnread = UNREAD_KEYS.reduce((sum, key) => sum + unread[key], 0);
 
   async function logout() {
     if (loggingOut) return;
@@ -211,9 +254,9 @@ export default function AdminShell({
         </button>
         <SjaaLogo className="h-8 w-8 object-contain" />
         <span className="truncate text-sm font-bold">Student ID Administration</span>
-        {unread.applications + unread.notifications > 0 && (
-          <span className="nav-badge ml-auto" aria-label={`${unread.applications + unread.notifications} new`}>
-            {badgeText(unread.applications + unread.notifications)}
+        {totalUnread > 0 && (
+          <span className="nav-badge ml-auto" aria-label={`${totalUnread} new`}>
+            {badgeText(totalUnread)}
           </span>
         )}
       </div>
@@ -349,14 +392,16 @@ export default function AdminShell({
       </aside>
 
       <div className="admin-content">
-        <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6">{children}</main>
+        <main className="admin-main mx-auto w-full max-w-7xl px-4 sm:px-6"><LiveSyncContext.Provider value={liveSync}>{children}</LiveSyncContext.Provider></main>
         <footer className="admin-footer no-print">
           <div className="admin-footer-inner">
             <span className="admin-footer-item font-semibold text-[var(--ink)]">Authorized Staff Only</span>
             <span className="admin-footer-sep" aria-hidden>|</span>
             <span className="admin-footer-item admin-footer-address">{SCHOOL.address}</span>
             <span className="admin-footer-sep" aria-hidden>|</span>
-            <span className="admin-footer-item font-semibold text-[var(--ink)]">{new Date().getFullYear()}</span>
+            <span className="admin-footer-item font-semibold text-[var(--ink)]" suppressHydrationWarning>
+              {new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", year: "numeric" }).format(new Date())}
+            </span>
           </div>
         </footer>
       </div>
@@ -372,40 +417,41 @@ export default function AdminShell({
             if (!loggingOut) setSignOutOpen(false);
           }}
         >
-          <div className="modal-panel p-5" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start gap-3">
+          <div className="modal-panel overflow-hidden p-0" onClick={(event) => event.stopPropagation()}>
+            <div className="flex flex-col items-center px-6 pb-5 pt-7 text-center">
               <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                style={{ background: "var(--field-bg)", color: "var(--danger)" }}
+                className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border"
+                style={{
+                  background: "color-mix(in srgb, var(--danger) 12%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--danger) 28%, transparent)",
+                  color: "var(--danger)",
+                }}
                 aria-hidden
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-6 w-6" />
               </span>
-              <div className="min-w-0">
-                <h2 id="signout-title" className="text-sm font-bold">
-                  Sign out
-                </h2>
-                <p className="text-muted mt-1 text-xs leading-relaxed">
-                  Are you sure you want to sign out of the administration workspace? You will need to enter your
-                  credentials again to continue.
-                </p>
-              </div>
-            </div>
-            {logoutError && (
-              <p className="mt-3 text-xs" style={{ color: "var(--danger)" }} role="alert">
-                {logoutError}
+              <h2 id="signout-title" className="text-base font-extrabold tracking-tight text-[var(--ink)]">
+                Sign out of SJAA Admin?
+              </h2>
+              <p className="text-muted mt-2 max-w-xs text-xs leading-relaxed">
+                You will be returned to the sign-in page and will need your credentials to continue.
               </p>
-            )}
-            <div className="mt-4 flex justify-end gap-2">
+              {logoutError && (
+                <p className="mt-3 text-xs font-semibold" style={{ color: "var(--danger)" }} role="alert">
+                  {logoutError}
+                </p>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 border-t border-[var(--line)] bg-[var(--card)]/60 px-5 py-4">
               <button
                 type="button"
-                className="btn btn-outline"
+                className="btn btn-outline justify-center"
                 onClick={() => setSignOutOpen(false)}
                 disabled={loggingOut}
               >
-                Cancel
+                Stay signed in
               </button>
-              <button type="button" className="btn btn-danger" onClick={logout} disabled={loggingOut}>
+              <button type="button" className="btn btn-danger justify-center" onClick={logout} disabled={loggingOut}>
                 {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <LogOut className="h-4 w-4" aria-hidden />}
                 Sign out
               </button>
