@@ -18,7 +18,8 @@ export function cleanMultiline(value: unknown): string {
     .trim();
 }
 
-const NAME_RE = /^[A-Za-zÑñ][A-Za-zÑñ .'-]*$/;
+// Any letter (so "José" or "Zoë" pass), then letters, spaces, dots, hyphens and straight or curly apostrophes.
+const NAME_RE = /^\p{L}[\p{L} .'’-]*$/u;
 
 export function validateApplicationFields(input: Record<string, unknown>): {
   values: {

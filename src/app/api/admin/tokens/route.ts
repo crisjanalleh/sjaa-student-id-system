@@ -52,6 +52,9 @@ export async function POST(req: Request) {
   if (expiresAt.getTime() < Date.now() + 5 * 60 * 1000) {
     return json(422, { ok: false, error: "Expiration must be at least 5 minutes in the future." });
   }
+  if (expiresAt.getTime() > Date.now() + 5 * 365 * 24 * 60 * 60 * 1000) {
+    return json(422, { ok: false, error: "Expiration cannot be more than 5 years from now." });
+  }
 
   const { raw, id } = await db.transaction(async (tx) => {
     const token = await createAccessToken({

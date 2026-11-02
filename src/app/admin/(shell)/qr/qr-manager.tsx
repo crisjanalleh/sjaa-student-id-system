@@ -2,6 +2,7 @@
 
 import {
   Check,
+  CheckCircle2,
   ChevronDown,
   Copy,
   Download,
@@ -12,17 +13,24 @@ import {
   QrCode,
   RefreshCcw,
   ShieldAlert,
+  TriangleAlert,
+  Wifi,
+  Wrench,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import { ListCard, ListLink, Pager } from "@/components/list-card";
 import { renderQrPoster } from "@/lib/qr-poster";
 import SelectField from "@/components/select-field";
 import DateTimePicker from "@/components/date-time-picker";
 import SortIcon from "@/components/sort-icon";
+import type { TokenHealth } from "@/lib/token-health-types";
+
+const HEALTH_COLOR = { healthy: "var(--success)", warning: "var(--st-pending)", error: "var(--danger)" } as const;
 
 type TaskKind = "view" | "create" | "regenerate";
 
@@ -143,6 +151,58 @@ export default function QrManager({
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [zoomed, setZoomed] = useState(false);
   const requestInFlight = useRef(false);
+  const [health, setHealth] = useState<Record<number, TokenHealth>>({});
+  const [rechecking, setRechecking] = useState<number | null>(null);
+  const [openHealth, setOpenHealth] = useState<number | null>(null);
+  const activeKey = tokens
+    .filter((token) => !token.revokedAt)
+    .map((token) => token.id)
+    .join(",");
+
+  const runHealth = useCallback(async (ids: string, fresh: boolean) => {
+    if (!ids) return;
+    try {
+      const response = await fetch(`/api/admin/tokens/health?ids=${ids}${fresh ? "&fresh=1" : ""}`, { cache: "no-store" });
+      const data = (await response.json().catch(() => null)) as { ok?: boolean; results?: TokenHealth[] } | null;
+      if (!response.ok || !data?.ok || !data.results) return;
+      const results = data.results;
+      setHealth((current) => {
+        const next = { ...current };
+        for (const result of results) next[result.id] = result;
+        return next;
+      });
+    } catch {
+      // A failed check keeps the previous result; the next scheduled check tries again.
+    }
+  }, []);
+
+  // Checks run on load and every minute while the tab is visible, so a link that silently stops working shows up quickly.
+  useEffect(() => {
+    if (!activeKey) return;
+    const first = window.setTimeout(() => void runHealth(activeKey, false), 0);
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void runHealth(activeKey, false);
+    }, 60_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, [activeKey, runHealth]);
+
+  async function recheck(id: number) {
+    setRechecking(id);
+    await runHealth(String(id), true);
+    setRechecking(null);
+  }
+
+  function fixToken(id: number, fix: "regenerate" | "recheck") {
+    if (fix === "recheck") {
+      void recheck(id);
+      return;
+    }
+    if (!window.confirm("Replace this link with a new working one? The current link, and any QR code printed from it, will stop working.")) return;
+    void regenerate(id);
+  }
 
   // Render QR assets client-side from the authenticated access-link response.
   useEffect(() => {
@@ -583,8 +643,11 @@ export default function QrManager({
               <tbody>
                 {tokens.map((t) => {
                   const s = statusOf(t);
+                  const h = s.key === "Active" ? health[t.id] : undefined;
+                  const showDetail = Boolean(h && (h.level !== "healthy" || openHealth === t.id));
                   return (
-                    <tr key={t.id}>
+                    <Fragment key={t.id}>
+                    <tr className={showDetail ? "has-health" : undefined}>
                       <td className="qr-token-label" data-label="Label">
                         <p className="text-xs font-bold">{t.label}</p>
                         <p className="text-muted text-[10.5px]">
@@ -592,7 +655,26 @@ export default function QrManager({
                         </p>
                       </td>
                       <td data-label="Status">
-                        <span className={`badge ${s.cls}`}>{s.key}</span>
+                        {s.key === "Active" ? (
+                          <button
+                            type="button"
+                            className="qr-status"
+                            data-level={h?.level ?? "checking"}
+                            onClick={() => setOpenHealth((current) => (current === t.id ? null : t.id))}
+                            aria-expanded={showDetail}
+                            aria-label={`Link status for ${t.label}`}
+                            title={h ? `Checked ${new Date(h.checkedAt).toLocaleTimeString("en-PH")}` : "Checking link"}
+                          >
+                            {rechecking === t.id || !h ? (
+                              <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                            ) : (
+                              <span className="qr-status-dot" aria-hidden />
+                            )}
+                            <span>{!h ? "Checking" : h.level === "healthy" ? "Live" : h.level === "warning" ? "Attention" : "Offline"}</span>
+                          </button>
+                        ) : (
+                          <span className={`badge ${s.cls}`}>{s.key}</span>
+                        )}
                       </td>
                       <td className="text-muted whitespace-nowrap text-xs" data-label="Expires">
                         {t.expiresAt ? (
@@ -639,6 +721,80 @@ export default function QrManager({
                         )}
                       </td>
                     </tr>
+                    {showDetail && h && (
+                      <tr className="qr-health-row">
+                        <td colSpan={6}>
+                          <div
+                            className="rounded-lg border px-3.5 py-3"
+                            style={{
+                              borderColor: `color-mix(in srgb, ${HEALTH_COLOR[h.level]} 45%, var(--line))`,
+                              background: `color-mix(in srgb, ${HEALTH_COLOR[h.level]} 7%, var(--card))`,
+                            }}
+                            role={h.level === "error" ? "alert" : "status"}
+                          >
+                            {h.issues.length === 0 ? (
+                              <p className="flex items-center gap-2 text-xs font-semibold" style={{ color: HEALTH_COLOR.healthy }}>
+                                <CheckCircle2 className="h-4 w-4" aria-hidden /> Working. Students can open this link and reach the form.
+                              </p>
+                            ) : (
+                              <ul className="space-y-2">
+                                {h.issues.map((issue) => (
+                                  <li key={issue.code} className="flex items-start gap-2 text-left">
+                                    {issue.level === "error" ? (
+                                      <XCircle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: HEALTH_COLOR.error }} aria-hidden />
+                                    ) : (
+                                      <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: HEALTH_COLOR.warning }} aria-hidden />
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-bold text-[var(--ink)]">{issue.title}</p>
+                                      <p className="text-muted text-[11.5px] leading-relaxed">{issue.detail}</p>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {h.issues.some((issue) => issue.code.startsWith("address") || issue.code === "database") && (
+                              <div className="qr-connection-help mt-3 rounded-md px-3 py-2.5 text-left">
+                                <p className="flex items-center gap-1.5 text-xs font-bold text-[var(--ink)]">
+                                  <Wifi className="h-3.5 w-3.5" aria-hidden /> Try these quick checks first
+                                </p>
+                                <ul className="text-muted mt-1.5 list-disc space-y-0.5 pl-5 text-[11.5px] leading-relaxed">
+                                  <li>Confirm this computer&apos;s Wi-Fi or network has working internet (open any website).</li>
+                                  <li>Turn the Wi-Fi off and on again, or reconnect to the network, then press <strong>Recheck now</strong>.</li>
+                                  <li>Make sure the app is still running with <code>npm run dev</code>; restarting it refreshes the public link connection.</li>
+                                  <li>If it still fails, use <strong>Fix: issue a new link</strong> when offered.</li>
+                                </ul>
+                              </div>
+                            )}
+                            {h.fix && (
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <button
+                                  type="button"
+                                  className={h.fix === "regenerate" ? "btn btn-gold btn-sm" : "btn btn-outline btn-sm"}
+                                  onClick={() => fixToken(t.id, h.fix!)}
+                                  disabled={Boolean(busy) || rechecking === t.id}
+                                >
+                                  {rechecking === t.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                  ) : h.fix === "regenerate" ? (
+                                    <Wrench className="h-3.5 w-3.5" aria-hidden />
+                                  ) : (
+                                    <RefreshCcw className="h-3.5 w-3.5" aria-hidden />
+                                  )}
+                                  {h.fix === "regenerate" ? "Fix: issue a new link" : "Recheck now"}
+                                </button>
+                                <span className="text-muted text-[11px]">
+                                  {h.fix === "regenerate"
+                                    ? "Creates a working replacement with the same label and expiry."
+                                    : "Use this after the connection or tunnel is running again."}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

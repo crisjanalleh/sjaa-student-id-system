@@ -62,12 +62,16 @@ export async function POST(req: Request) {
   }
 
   // 3. Rate limits: per-IP submission quota + per-token quota.
-  const ipLimit = await rateLimitHit(`sub:ip:${ipHash}`, config.submissionsPerHour, 3600);
-  if (!ipLimit.allowed) {
-    return json(429, {
-      ok: false,
-      error: `Submission limit reached. You can submit up to ${config.submissionsPerHour} applications per hour from this connection. Please try again later.`,
-    });
+  // Without a trusted proxy every student looks like "direct", so a shared per-IP bucket would throttle the whole school.
+  const identified = ip !== "direct";
+  if (identified) {
+    const ipLimit = await rateLimitHit(`sub:ip:${ipHash}`, config.submissionsPerHour, 3600);
+    if (!ipLimit.allowed) {
+      return json(429, {
+        ok: false,
+        error: `Submission limit reached. You can submit up to ${config.submissionsPerHour} applications per hour from this connection. Please try again later.`,
+      });
+    }
   }
   const tokenLimit = await rateLimitHit(`sub:tok:${ctx.accessTokenId}`, config.tokenSubmissionsPerHour, 3600);
   if (!tokenLimit.allowed) {
@@ -85,11 +89,13 @@ export async function POST(req: Request) {
 
   // Abusive-client bucket: repeated malformed requests are throttled harder.
   // Peek first (no increment); increments happen only on actual failures.
-  const failedAttempts = await rateLimitPeek(`suberr:ip:${ipHash}`, 3600);
-  if (failedAttempts.count >= 20) {
+  // Unidentified clients are tracked per form session so one student's mistakes never block others.
+  const failureKey = identified ? `suberr:ip:${ipHash}` : `suberr:sess:${ctx.formSessionId}`;
+  const failedAttempts = await rateLimitPeek(failureKey, 3600);
+  if (failedAttempts.count >= 60) {
     return json(429, { ok: false, error: "Too many invalid requests. Please try again later." });
   }
-  const countFailure = () => rateLimitHit(`suberr:ip:${ipHash}`, 20, 3600);
+  const countFailure = () => rateLimitHit(failureKey, 60, 3600);
 
   let formData: FormData;
   try {

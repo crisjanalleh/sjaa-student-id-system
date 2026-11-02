@@ -1416,6 +1416,59 @@ a:hover > .sort-icon.is-asc { transform: rotate(180deg) translateY(2px); }
   white-space: normal;
 }
 .qr-token-table .qr-token-manage { min-width: 175px; }
+.qr-token-table tr.has-health > td { border-bottom: 0; }
+.qr-token-table .qr-health-row > td {
+  padding: 0 14px 14px;
+  text-align: left;
+  white-space: normal;
+}
+.qr-token-table .qr-health-row:hover { background: transparent; }
+.qr-status {
+  --qs: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--qs) 38%, var(--line));
+  background: color-mix(in srgb, var(--qs) 10%, var(--card));
+  color: var(--qs);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.qr-status:hover { background: color-mix(in srgb, var(--qs) 18%, var(--card)); }
+.qr-status:active { transform: scale(0.97); }
+.qr-status[data-level="healthy"] { --qs: var(--success); }
+.qr-status[data-level="warning"] { --qs: var(--st-pending); }
+.qr-status[data-level="error"] { --qs: var(--danger); }
+.qr-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--qs);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--qs) 55%, transparent);
+}
+.qr-status[data-level="healthy"] .qr-status-dot { animation: qr-status-pulse 2.4s ease-out infinite; }
+@keyframes qr-status-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--qs) 55%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 7px transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qr-status[data-level="healthy"] .qr-status-dot { animation: none; }
+}
+.qr-connection-help {
+  border: 1px dashed color-mix(in srgb, var(--academic-blue) 40%, var(--line));
+  background: color-mix(in srgb, var(--academic-blue) 6%, var(--card));
+}
+@media (max-width: 760px) {
+  .qr-token-table tbody tr.has-health { border-bottom: 0; padding-bottom: 0; }
+  .qr-token-table .qr-health-row { padding-top: 0; }
+  .qr-token-table .qr-health-row > td { display: block; padding: 0 0 10px; text-align: left; }
+  .qr-token-table .qr-health-row > td::before { display: none; }
+}
 @media (max-width: 760px) {
   .qr-token-table,
   .qr-token-table tbody {

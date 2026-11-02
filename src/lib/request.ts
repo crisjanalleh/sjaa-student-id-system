@@ -11,8 +11,10 @@ export function clientIp(req: Request): string {
   if (config.trustedProxy) {
     const fwd = req.headers.get("x-forwarded-for");
     if (fwd) {
-      const first = fwd.split(",")[0]?.trim();
-      if (first) return first.slice(0, 64);
+      // A single trusted proxy appends the real peer last; earlier entries are client-controlled.
+      const parts = fwd.split(",");
+      const last = parts[parts.length - 1]?.trim();
+      if (last) return last.slice(0, 64);
     }
     const realIp = req.headers.get("x-real-ip");
     if (realIp) return realIp.trim().slice(0, 64);

@@ -10,8 +10,11 @@ const PUBLIC_EXACT = new Set([
   "/apply",
   "/acknowledge",
   "/favicon.ico",
+  "/icon.png",
+  "/apple-icon.png",
   "/api/apply",
   "/api/apply/keepalive",
+  "/api/health",
   "/api/notifications/acknowledge",
 ]);
 const PUBLIC_PREFIXES = ["/_next/", "/__nextjs", "/apply/"];

@@ -43,9 +43,8 @@ if (!globalForDb.__sjaaMariaDbPool) {
   });
 }
 
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.__sjaaMariaDbPool = pool;
-}
+// Cached in every environment so separate route bundles never open duplicate pools.
+globalForDb.__sjaaMariaDbPool = pool;
 
 export { pool };
 export const db = drizzle(pool);

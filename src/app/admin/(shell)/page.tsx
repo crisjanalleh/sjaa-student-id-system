@@ -1,6 +1,8 @@
 import { and, asc, desc, eq, gte, isNull, lt, min, sql } from "drizzle-orm";
 import { LayoutDashboard, QrCode } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAdminContext } from "@/lib/auth";
 import { db } from "@/db";
 import { applicationListColumns } from "@/db/columns";
 import { adminUsers, auditLogs, studentApplications } from "@/db/schema";
@@ -44,6 +46,7 @@ export default async function DashboardPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  if (!(await getAdminContext())) redirect("/admin/login");
   const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] ?? "" : value ?? "");
   const applicationOrder = first(params.applicationOrder) === "oldest" ? "oldest" : "newest";
 

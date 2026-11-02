@@ -43,7 +43,7 @@ export function rejectionNotice(
   acknowledgeUrl = "",
   acknowledgeExpiry = "",
 ): RenderedEmail {
-  const subject = `[${SCHOOL.shortName}] Student ID Application â€” Photo Rejected (${app.applicationCode})`;
+  const subject = `[${SCHOOL.shortName}] Student ID Application - Photo Rejected (${app.applicationCode})`;
   const text = [
     `Dear ${app.firstName},`,
     "",
@@ -58,9 +58,9 @@ export function rejectionNotice(
     "Please do not submit a second application. Refer to the control number above if you contact the school about this notice.",
     "",
     ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, ...(acknowledgeExpiry ? [`This link expires on ${acknowledgeExpiry} (Philippine time).`] : []), "Acknowledging confirms that you received this email; it does not change your application status.", ""] : []),
-    "If you believe this notice was sent in error, contact the Administration Office through the schoolâ€™s usual channels.",
+    "If you believe this notice was sent in error, contact the Administration Office through the school's usual channels.",
     "",
-    `â€” ${SCHOOL.name}`,
+    `- ${SCHOOL.name}`,
   ].join("\n");
   const body = `
     <p style="margin:0 0 12px;font-size:14px;">Dear <strong>${esc(app.firstName)}</strong>,</p>
@@ -97,9 +97,9 @@ export function readyForClaiming(
     "Please quote the application control number above if you contact the school about your card.",
     "",
     ...(acknowledgeUrl ? ["Please acknowledge receipt using this secure link:", acknowledgeUrl, ...(acknowledgeExpiry ? [`This link expires on ${acknowledgeExpiry} (Philippine time).`] : []), "Acknowledging confirms that you received this email; it does not mark the physical card as collected.", ""] : []),
-    "If you believe this message was sent in error, contact the Administration Office through the schoolâ€™s usual channels.",
+    "If you believe this message was sent in error, contact the Administration Office through the school's usual channels.",
     "",
-    `â€” ${SCHOOL.name}`,
+    `- ${SCHOOL.name}`,
   ].join("\n");
   const body = `
     <p style="margin:0 0 12px;font-size:14px;">Dear <strong>${esc(app.firstName)}</strong>,</p>

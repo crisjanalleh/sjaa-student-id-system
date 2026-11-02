@@ -100,7 +100,8 @@ export default function PrinterCheck({
     }
   }, []);
 
-  const canPrint = typeof window !== "undefined" && typeof window.print === "function";
+  // The server cannot test this; assume yes so server and client markup match, then rely on the real check at print time.
+  const canPrint = typeof window === "undefined" || typeof window.print === "function";
   const checks: Check[] = [
     {
       id: "browser",

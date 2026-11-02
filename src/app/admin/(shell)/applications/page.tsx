@@ -2,6 +2,8 @@ import { and, desc, asc, eq, isNull, like, or, sql, type SQL } from "drizzle-orm
 import CountIndicator from "@/components/live-sync";
 import { ChevronRight, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAdminContext } from "@/lib/auth";
 import { db } from "@/db";
 import { applicationListColumns } from "@/db/columns";
 import { studentApplications } from "@/db/schema";
@@ -50,6 +52,7 @@ export default async function ApplicationsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  if (!(await getAdminContext())) redirect("/admin/login");
   const q = firstParam(sp.q).slice(0, 80).trim();
   const rawStatus = firstParam(sp.status);
   const rawSort = firstParam(sp.sort);
@@ -223,10 +226,10 @@ export default async function ApplicationsPage({
             <table className="tbl">
               <thead>
                 <tr>
-                  {sortHeader("code", "Control No.")}
-                  {sortHeader("student", "Student ID / LRN")}
                   {sortHeader("name", "Student Name")}
                   <th>Grade & Track</th>
+                  {sortHeader("student", "Student ID / LRN")}
+                  {sortHeader("code", "Control No.")}
                   {sortHeader("status", "Status")}
                   {sortHeader("created", "Submitted")}
                 </tr>
@@ -234,8 +237,6 @@ export default async function ApplicationsPage({
               <tbody>
                 {rows.map((a) => (
                   <ClickableRow key={a.id} href={`/admin/applications/${a.id}`} label={`Review application ${a.applicationCode}`}>
-                    <td className="font-mono text-xs font-bold text-[var(--academic-blue)]">{a.applicationCode}</td>
-                    <td className="font-mono text-xs text-muted">{a.studentIdNumber}</td>
                     <td className="max-w-[220px] truncate font-semibold text-sm">{fullName(a)}</td>
                     <td className="whitespace-nowrap text-xs">
                       <span className="font-medium text-[var(--ink)]">{a.gradeLevel}</span>
@@ -243,6 +244,8 @@ export default async function ApplicationsPage({
                         <span className="text-muted ml-1 font-normal">· {a.trackStrand.split("—")[0].trim()}</span>
                       ) : null}
                     </td>
+                    <td className="font-mono text-xs text-muted">{a.studentIdNumber}</td>
+                    <td className="font-mono text-xs font-bold text-[var(--academic-blue)]">{a.applicationCode}</td>
                     <td>
                       <StatusBadge status={a.status} />
                     </td>

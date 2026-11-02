@@ -73,6 +73,7 @@ export async function processStudentPhoto(input: {
   try {
     output = await sharp(input.buffer, { limitInputPixels: 40_000_000 })
       .rotate() // honor EXIF orientation before stripping metadata
+      .flatten({ background: "#ffffff" }) // transparent PNGs would otherwise turn black in JPEG
       .resize({
         width: 1200,
         height: 1200,

@@ -183,7 +183,12 @@ export default function AdminShell({
       if (stopped) return;
       if (document.visibilityState === "visible") {
         try {
-          const response = await fetch("/api/admin/unread", { cache: "no-store" });
+          const response = await fetch("/api/admin/unread", { cache: "no-store", headers: { "x-sjaa-passive": "1" } });
+          if (response.status === 401) {
+            stopped = true;
+            window.location.assign("/admin/login");
+            return;
+          }
           const data = (await response.json()) as { ok?: boolean; counts?: UnreadCounts };
           if (response.ok && data.counts && !stopped) {
             failures = 0;

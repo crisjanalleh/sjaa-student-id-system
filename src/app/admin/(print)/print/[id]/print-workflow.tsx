@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowUp,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -113,6 +114,7 @@ export default function PrintWorkflow({
   const { detail, setDetail, error: liveError, reload } = usePrintDetail(batchId, initial, !printedAt);
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   const [fontsReady, setFontsReady] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [busy, setBusy] = useState<"" | "print" | "review">("");
   const [error, setError] = useState("");
   const [showTable, setShowTable] = useState(false);
@@ -129,6 +131,12 @@ export default function PrintWorkflow({
     return 1;
   });
   const inFlight = useRef(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -533,6 +541,17 @@ export default function PrintWorkflow({
             ))}
           </div>
         </div>
+      )}
+
+      {scrolled && (
+        <button
+          type="button"
+          className="btn btn-primary btn-sm no-print fixed bottom-5 right-5 z-30 shadow-lg"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Back to print controls"
+        >
+          <ArrowUp className="h-4 w-4" aria-hidden /> Print controls
+        </button>
       )}
 
       <div className="print-test" aria-hidden>

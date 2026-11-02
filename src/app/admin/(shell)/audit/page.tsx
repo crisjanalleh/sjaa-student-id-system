@@ -3,6 +3,8 @@ import CountIndicator from "@/components/live-sync";
 import { CalendarDays, ChevronRight, Filter, Info, ScrollText, Search, Tag, X } from "lucide-react";
 import SortIcon from "@/components/sort-icon";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getAdminContext } from "@/lib/auth";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
 import { DateRangeFields } from "@/components/date-time-picker";
@@ -38,6 +40,7 @@ export default async function AuditLogsPage({
   searchParams: Promise<SearchParams>;
 }) {
   const sp = await searchParams;
+  if (!(await getAdminContext())) redirect("/admin/login");
   const rawAction = firstParam(sp.action);
   const action = AUDIT_ACTIONS.includes(rawAction as never) ? rawAction : "";
   const entity = firstParam(sp.entity).slice(0, 60).trim();

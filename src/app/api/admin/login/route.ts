@@ -10,7 +10,7 @@ import {
   destroyAdminSession,
 } from "@/lib/auth";
 import { config } from "@/lib/config";
-import { hashIp, sha256Hex, verifyPassword } from "@/lib/crypto";
+import { hashIp, hashPassword, randomToken, sha256Hex, verifyPassword } from "@/lib/crypto";
 import { rateLimitHit, resetRateLimit } from "@/lib/rate-limit";
 import {
   clientIp,
@@ -24,6 +24,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GENERIC_FAILURE = "Invalid username or password.";
+let dummyHash: string | null = null;
 
 function json(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status });
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
     .limit(1);
   const admin = rows[0];
 
-  const passwordOk = admin ? verifyPassword(password, admin.passwordHash) : false;
+  // Hash against a throwaway value for unknown users so response time does not reveal which usernames exist.
+  const passwordOk = verifyPassword(password, admin?.passwordHash ?? (dummyHash ??= hashPassword(randomToken(12))));
   if (!admin || !admin.isActive || !passwordOk) {
     await audit({
       action: "auth.login_failed",

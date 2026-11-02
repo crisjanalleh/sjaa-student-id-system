@@ -3,9 +3,19 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { runMigrations } from "./migrate-all.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
+
+// Bring the database schema up to date before the app starts, so nobody has to
+// run migration commands by hand after syncing the latest version.
+console.log("[db] Checking database updates...");
+try {
+  runMigrations();
+} catch (error) {
+  console.warn("[db] Could not check database updates:", error instanceof Error ? error.message : error);
+}
 
 // Open the admin sign-in page in the default browser once the server is up,
 // so `npm run dev` does not require typing the URL by hand.

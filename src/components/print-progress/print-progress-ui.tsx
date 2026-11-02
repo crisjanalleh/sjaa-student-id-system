@@ -121,7 +121,7 @@ const FILTERS: { key: "all" | PrintItemState; label: string }[] = [
   { key: "queued", label: "Queued" },
   { key: "printed", label: "Printed" },
 ];
-const PAGE = 100;
+const PAGE = 20;
 
 /** Record-by-record view: which card is printing now, what is queued, what is done. */
 export function PrintDetailTable({ detail }: { detail: PrintDetail }) {
@@ -135,6 +135,7 @@ export function PrintDetailTable({ detail }: { detail: PrintDetail }) {
   };
   const rows = detail.items.filter((item) => filter === "all" || item.state === filter);
   const visible = rows.slice(0, limit);
+  const indexOf = new Map(detail.items.map((item, index) => [item.itemId, index + 1]));
 
   return (
     <div>
@@ -175,7 +176,7 @@ export function PrintDetailTable({ detail }: { detail: PrintDetail }) {
             ) : (
               visible.map((item) => (
                 <tr key={item.itemId} style={item.state === "printing" ? { background: "var(--bg)" } : undefined}>
-                  <td className="text-muted text-xs">{detail.items.indexOf(item) + 1}</td>
+                  <td className="text-muted text-xs">{indexOf.get(item.itemId)}</td>
                   <td className="font-mono text-xs font-bold">{item.code}</td>
                   <td className="text-xs">
                     {item.name}
@@ -205,10 +206,22 @@ export function PrintDetailTable({ detail }: { detail: PrintDetail }) {
           </tbody>
         </table>
       </div>
-      {rows.length > visible.length && (
-        <button type="button" className="btn btn-outline btn-sm mt-2" onClick={() => setLimit((value) => value + PAGE)}>
-          Show more ({rows.length - visible.length} remaining)
-        </button>
+      {rows.length > PAGE && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {rows.length > visible.length && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setLimit((value) => value + PAGE)}>
+              View more ({Math.min(PAGE, rows.length - visible.length)} of {rows.length - visible.length} remaining)
+            </button>
+          )}
+          {limit > PAGE && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLimit(PAGE)}>
+              Show less
+            </button>
+          )}
+          <span className="text-muted text-xs">
+            Showing {visible.length} of {rows.length}
+          </span>
+        </div>
       )}
     </div>
   );

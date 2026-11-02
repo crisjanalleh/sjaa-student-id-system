@@ -1,6 +1,6 @@
 import "server-only";
 import { and, eq, gt, isNull, lt } from "drizzle-orm";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
@@ -85,6 +85,8 @@ export const getAdminContext = cache(async function getAdminContext(): Promise<A
   const store = await cookies();
   const raw = store.get(ADMIN_COOKIE)?.value;
   if (!raw || raw.length < 20) return null;
+  // Background polling must not count as activity, or an abandoned tab would never time out.
+  const passive = (await headers()).get("x-sjaa-passive") === "1";
 
   const rows = await db
     .select({ session: adminSessions, admin: adminUsers })
@@ -112,7 +114,7 @@ export const getAdminContext = cache(async function getAdminContext(): Promise<A
   }
 
   // Frequent polling must not turn into a database write on every request.
-  if (Date.now() - row.session.lastSeenAt.getTime() > LAST_SEEN_WRITE_MS) {
+  if (!passive && Date.now() - row.session.lastSeenAt.getTime() > LAST_SEEN_WRITE_MS) {
     await db
       .update(adminSessions)
       .set({ lastSeenAt: new Date() })
