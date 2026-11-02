@@ -27,6 +27,22 @@ function announce(url) {
   console.log(`[dev] Opening ${url} in your browser.`);
 }
 
+// Next.js compiles each route on first request in development, which makes the
+// first student scan slow. Visiting the student routes once up front removes that delay.
+let warmed = false;
+async function warmStudentRoutes(port) {
+  if (warmed) return;
+  warmed = true;
+  for (const route of ["/apply", "/apply/warmup", "/?access_token=warmup", "/api/apply/keepalive"]) {
+    try {
+      await fetch(`http://localhost:${port}${route}`, { redirect: "manual" });
+    } catch {
+      /* the server may still be starting; warming is best effort */
+    }
+  }
+  console.log("[dev] Student application routes are warmed up.");
+}
+
 const app = spawn(process.execPath, [nextBin, "dev", ...process.argv.slice(2)], {
   cwd: root,
   stdio: ["inherit", "pipe", "inherit"],
@@ -34,7 +50,10 @@ const app = spawn(process.execPath, [nextBin, "dev", ...process.argv.slice(2)], 
 app.stdout.on("data", (chunk) => {
   process.stdout.write(chunk);
   const match = chunk.toString().match(/https?:\/\/localhost:(\d+)/i);
-  if (match) announce(`http://localhost:${match[1]}/admin/login`);
+  if (match) {
+    announce(`http://localhost:${match[1]}/admin/login`);
+    setTimeout(() => void warmStudentRoutes(match[1]), 1500);
+  }
 });
 const share = spawn(process.execPath, [path.join(root, "scripts", "share.mjs")], { cwd: root, stdio: "inherit" });
 share.on("exit", (code) => {

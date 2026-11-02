@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Check,
   ChevronDown,
   Copy,
   Download,
@@ -20,6 +21,66 @@ import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import { ListCard, ListLink, Pager } from "@/components/list-card";
 import { renderQrPoster } from "@/lib/qr-poster";
 import SelectField from "@/components/select-field";
+import DateTimePicker from "@/components/date-time-picker";
+import SortIcon from "@/components/sort-icon";
+
+type TaskKind = "view" | "create" | "regenerate";
+
+const TASK_COPY: Record<TaskKind, { title: string; steps: string[] }> = {
+  view: {
+    title: "Opening the active QR link",
+    steps: ["Confirming your administrator session", "Retrieving the secure application link", "Generating the QR code", "Preparing the poster and download files"],
+  },
+  create: {
+    title: "Creating a new application QR",
+    steps: ["Validating the label and expiry date", "Creating the secure application link", "Generating the QR code", "Preparing the poster and download files"],
+  },
+  regenerate: {
+    title: "Renewing the application link",
+    steps: ["Deactivating the previous link", "Creating a replacement link", "Generating the QR code", "Preparing the poster and download files"],
+  },
+};
+
+function TaskProgress({ kind, stage }: { kind: TaskKind; stage: number }) {
+  const { title, steps } = TASK_COPY[kind];
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <section className="card p-5" role="status" aria-live="polite" aria-busy="true">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
+        <Loader2 className="h-4 w-4 animate-spin text-[var(--academic-blue)]" aria-hidden /> {title}
+      </h2>
+      <p className="text-muted mt-1 text-xs">Please keep this page open. This normally takes only a few seconds.</p>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--line)]" aria-hidden>
+        <div className="h-full rounded-full bg-[var(--academic-blue)] transition-[width] duration-500" style={{ width: `${Math.min(100, ((stage + 0.5) / steps.length) * 100)}%` }} />
+      </div>
+      <ol className="mt-3 space-y-2">
+        {steps.map((step, i) => {
+          const done = i < stage;
+          const current = i === stage;
+          return (
+            <li key={step} className={`flex items-center gap-2.5 text-xs ${done || current ? "text-[var(--ink)]" : "text-[var(--muted)]"}`}>
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${done ? "bg-[var(--success)] text-white" : current ? "bg-[var(--academic-blue)]/15 text-[var(--academic-blue)]" : "bg-[var(--line)]"}`}
+              >
+                {done ? <Check className="h-3 w-3" aria-hidden /> : current ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : i + 1}
+              </span>
+              <span className={current ? "font-semibold" : ""}>{step}</span>
+            </li>
+          );
+        })}
+      </ol>
+      {slow && (
+        <p className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--bg)] px-3 py-2 text-[11px] leading-relaxed text-[var(--muted)]">
+          This is taking longer than usual, which can happen on a slow connection. Nothing is wrong — the QR code will appear as soon as it is ready.
+        </p>
+      )}
+    </section>
+  );
+}
 
 type TokenRow = {
   id: number;
@@ -38,6 +99,11 @@ function statusOf(t: TokenRow): { key: string; cls: string } {
   return { key: "Active", cls: "badge-active" };
 }
 
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 function formatTokenDate(value: string): { date: string; time: string } {
   const date = new Date(value);
   return {
@@ -52,6 +118,7 @@ export default function QrManager({
   dateOrder,
   page,
   totalPages,
+  schoolYears,
   school,
 }: {
   tokens: TokenRow[];
@@ -59,11 +126,13 @@ export default function QrManager({
   dateOrder: "newest" | "oldest";
   page: number;
   totalPages: number;
+  schoolYears: string[];
   school: { name: string; address: string; motto: string };
 }) {
   const router = useRouter();
-  const [label, setLabel] = useState("");
+  const [label, setLabel] = useState(schoolYears[0] ?? "");
   const [expiresAt, setExpiresAt] = useState("");
+  const [task, setTask] = useState<{ kind: TaskKind; stage: number } | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [issued, setIssued] = useState<{ id: number; url: string; label: string; expiresAt: string | null; recovered?: boolean } | null>(null);
@@ -80,29 +149,37 @@ export default function QrManager({
     if (!issued) return;
     let cancelled = false;
     (async () => {
-      const png = await QRCode.toDataURL(issued.url, {
-        width: 1024,
-        margin: 2,
-        errorCorrectionLevel: "M",
-      });
-      const svg = await QRCode.toString(issued.url, {
-        type: "svg",
-        width: 1024,
-        margin: 2,
-        errorCorrectionLevel: "M",
-      });
-      const poster = await renderQrPoster({
-        url: issued.url,
-        label: issued.label,
-        expiresAt: issued.expiresAt,
-        schoolName: school.name,
-        address: school.address,
-        motto: school.motto,
-      }).catch(() => "");
-      if (!cancelled) {
-        setPngDataUrl(png);
-        setSvgMarkup(svg);
-        setPosterDataUrl(poster);
+      setTask((t) => (t ? { ...t, stage: 2 } : t));
+      try {
+        const png = await QRCode.toDataURL(issued.url, {
+          width: 1024,
+          margin: 2,
+          errorCorrectionLevel: "M",
+        });
+        const svg = await QRCode.toString(issued.url, {
+          type: "svg",
+          width: 1024,
+          margin: 2,
+          errorCorrectionLevel: "M",
+        });
+        if (!cancelled) {
+          setPngDataUrl(png);
+          setSvgMarkup(svg);
+          setTask((t) => (t ? { ...t, stage: 3 } : t));
+        }
+        const poster = await renderQrPoster({
+          url: issued.url,
+          label: issued.label,
+          expiresAt: issued.expiresAt,
+          schoolName: school.name,
+          address: school.address,
+          motto: school.motto,
+        }).catch(() => "");
+        if (!cancelled) setPosterDataUrl(poster);
+      } catch {
+        if (!cancelled) setError("The QR code could not be generated. Please try again.");
+      } finally {
+        if (!cancelled) setTask(null);
       }
     })();
     return () => {
@@ -119,6 +196,7 @@ export default function QrManager({
     }
     requestInFlight.current = true;
     setBusy("create");
+    setTask({ kind: "create", stage: 1 });
     setError("");
     setIssued(null);
     setPngDataUrl("");
@@ -137,13 +215,15 @@ export default function QrManager({
         | null;
       if (res.status === 201 && data?.ok && data.url && data.id) {
         setIssued({ id: data.id, url: data.url, label: data.label ?? label, expiresAt: data.expiresAt ?? null });
-        setLabel("");
+        setLabel(schoolYears[0] ?? "");
         setExpiresAt("");
         router.refresh();
         return;
       }
+      setTask(null);
       setError(data?.error || "Token creation failed.");
     } catch {
+      setTask(null);
       setError("Network error. Please try again.");
     } finally {
       requestInFlight.current = false;
@@ -181,6 +261,7 @@ export default function QrManager({
     if (busy || requestInFlight.current) return;
     requestInFlight.current = true;
     setBusy(`regen-${id}`);
+    setTask({ kind: "regenerate", stage: 1 });
     setError("");
     setIssued(null);
     setPngDataUrl("");
@@ -198,8 +279,10 @@ export default function QrManager({
         router.refresh();
         return;
       }
+      setTask(null);
       setError(data?.error || "Regeneration failed.");
     } catch {
+      setTask(null);
       setError("Network error. Please try again.");
     } finally {
       requestInFlight.current = false;
@@ -211,6 +294,7 @@ export default function QrManager({
     if (busy || requestInFlight.current) return;
     requestInFlight.current = true;
     setBusy(`view-${id}`);
+    setTask({ kind: "view", stage: 1 });
     setError("");
     setIssued(null);
     setPngDataUrl("");
@@ -221,9 +305,11 @@ export default function QrManager({
       if (response.ok && data?.ok && data.url) {
         setIssued({ id, url: data.url, label: data.label ?? "", expiresAt: data.expiresAt ?? null, recovered: true });
       } else {
+        setTask(null);
         setError(data?.error || "The access link could not be recovered.");
       }
     } catch {
+      setTask(null);
       setError("Connection problem while loading the access link. Please try again.");
     } finally {
       requestInFlight.current = false;
@@ -283,21 +369,41 @@ export default function QrManager({
                 className="inp"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="e.g. SY 2026-2027"
+                placeholder={`e.g. ${schoolYears[0] ?? "SY 2026-2027"}`}
                 maxLength={120}
               />
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-muted text-[11px]">Suggestions:</span>
+                {schoolYears.map((sy) => (
+                  <button
+                    key={sy}
+                    type="button"
+                    onClick={() => setLabel(sy)}
+                    aria-pressed={label === sy}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${label === sy ? "border-[var(--academic-blue)] bg-[var(--academic-blue)]/12 text-[var(--academic-blue)]" : "border-[var(--line)] bg-[var(--elevated)] text-[var(--ink)] hover:border-[var(--academic-blue)]"}`}
+                  >
+                    {sy}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="mb-4">
               <label className="lbl" htmlFor="qr_exp">
                 Expiration <span className="normal-case">(required)</span>
               </label>
-              <input
+              <DateTimePicker
                 id="qr_exp"
-                type="datetime-local"
-                className="inp"
+                mode="datetime"
                 required
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onValueChange={setExpiresAt}
+                min={todayIso()}
+                placeholder="Choose expiry date and time"
+                presets={[
+                  { label: "+7 days", offsetDays: 7 },
+                  { label: "+30 days", offsetDays: 30 },
+                  { label: "+90 days", offsetDays: 90 },
+                ]}
               />
               <p className="text-muted mt-1 text-[11px]">Students can no longer use the QR code after this date and time.</p>
             </div>
@@ -309,7 +415,8 @@ export default function QrManager({
         </section>
 
         {/* Authenticated token link and QR display */}
-        {issued && (
+        {task && <TaskProgress kind={task.kind} stage={task.stage} />}
+        {!task && issued && (
           <section className="card p-5" style={{ borderColor: "var(--accent-gold)" }}>
             <h2 className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--ink)]">
               <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[var(--accent-gold)]/16 text-[var(--accent-gold)]">
@@ -439,7 +546,7 @@ export default function QrManager({
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3 py-1 text-xs font-semibold text-[var(--ink)] no-underline transition-colors hover:border-[var(--academic-blue)]"
           >
             {dateOrder === "newest" ? "Newest first" : "Oldest first"}
-            <span className="text-[10px]" aria-hidden>{dateOrder === "newest" ? "▼" : "▲"}</span>
+            <SortIcon active dir={dateOrder === "newest" ? "desc" : "asc"} />
           </ListLink>
         </div>
         {tokens.length === 0 ? (

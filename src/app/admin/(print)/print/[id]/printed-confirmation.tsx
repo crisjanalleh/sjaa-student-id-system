@@ -39,13 +39,13 @@ export default function PrintedConfirmation({
         body: JSON.stringify({ confirmedPrinted: true }),
       });
       const data = (await response.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; notificationAttention?: boolean }
+        | { ok?: boolean; error?: string; notificationsQueued?: number }
         | null;
       if (!response.ok || !data?.ok) {
         setError(data?.error || "Could not confirm printing. Refresh the page and try again.");
         return;
       }
-      setNotificationWarning(Boolean(data.notificationAttention));
+      setNotificationWarning(Boolean(data.notificationsQueued));
       setConfirmOpen(false);
       setAllPrinted(false);
       router.refresh();
@@ -68,9 +68,9 @@ export default function PrintedConfirmation({
           The application statuses and ready-for-collection notifications have been recorded. The physical handover still must be confirmed separately when each student collects an ID.
         </p>
         {notificationWarning && (
-          <p className="mt-2 flex items-start gap-2 text-xs" style={{ color: "var(--danger)" }}>
-            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            One or more email notifications need attention. Review them on the Notifications page.
+          <p className="text-muted mt-2 flex items-start gap-2 text-xs">
+            <Loader2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            Collection emails are being sent in the background. If any fail, they stay on the Notifications page for retry.
           </p>
         )}
       </section>

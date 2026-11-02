@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { applicationAccessTokens } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { requireAdminApi } from "@/lib/auth";
-import { getPublicBaseUrl } from "@/lib/public-url";
+import { accessLinkFor } from "@/lib/tokens";
 import { decryptAccessToken, safeEqual, sha256Hex } from "@/lib/crypto";
 import { clientIp } from "@/lib/request";
 
@@ -59,7 +59,7 @@ export async function GET(
   });
 
   return NextResponse.json(
-    { ok: true, url: `${getPublicBaseUrl()}/?access_token=${raw}`, label: token.label, expiresAt: token.expiresAt?.toISOString() ?? null },
+    { ok: true, url: accessLinkFor(raw), label: token.label, expiresAt: token.expiresAt?.toISOString() ?? null },
     { headers: { "Cache-Control": "no-store, private", Pragma: "no-cache" } },
   );
 }

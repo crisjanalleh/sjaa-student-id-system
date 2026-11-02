@@ -14,7 +14,7 @@ const PUBLIC_EXACT = new Set([
   "/api/apply/keepalive",
   "/api/notifications/acknowledge",
 ]);
-const PUBLIC_PREFIXES = ["/_next/", "/__nextjs"];
+const PUBLIC_PREFIXES = ["/_next/", "/__nextjs", "/apply/"];
 
 export function proxy(req: NextRequest) {
   const tunneled = req.headers.has("cf-ray") || req.headers.has("cf-connecting-ip");

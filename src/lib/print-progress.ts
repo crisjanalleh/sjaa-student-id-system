@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
+import { applicationListColumns } from "@/db/columns";
 import { printBatchItems, printBatches, printItemProgress, studentApplications } from "@/db/schema";
 import { fullName } from "@/lib/format";
 import {
@@ -11,8 +12,9 @@ import {
   type PrintSummary,
 } from "@/lib/print-progress-types";
 
-// A run nobody confirmed (closed tab, crashed browser) stops counting as "printing" after this.
-const STALE_MS = 20 * 60 * 1000;
+// A run nobody confirmed (closed tab, crashed browser) is kept for this long so a long bulk run is never
+// silently put back in the queue; the admin is asked to confirm or cancel it when they return.
+const STALE_MS = 12 * 60 * 60 * 1000;
 
 let tableReady: Promise<unknown> | null = null;
 // Created on first use so existing databases don't need a schema push.
@@ -112,7 +114,7 @@ export async function getPrintDetail(batchId: number): Promise<PrintDetail | nul
 
   const [items, progress] = await Promise.all([
     db
-      .select({ itemId: printBatchItems.id, app: studentApplications })
+      .select({ itemId: printBatchItems.id, app: applicationListColumns })
       .from(printBatchItems)
       .innerJoin(studentApplications, eq(studentApplications.id, printBatchItems.applicationId))
       .where(eq(printBatchItems.batchId, batchId))
@@ -196,6 +198,7 @@ export async function startPrintRun(
 export async function finishPrintRun(
   batchId: number,
   outcome: "complete" | "cancel",
+  failedSets: number[] = [],
 ): Promise<{ ok: true; changed: number } | Failure> {
   await ensureTable();
   return db.transaction(async (tx) => {
@@ -210,10 +213,63 @@ export async function finishPrintRun(
       return { ok: false as const, status: 409, error: "No print run is waiting for confirmation." };
     }
     if (outcome === "complete") {
+      // Sets the admin reports as failed (jam, misprint) go back to the queue; everything else is kept as printed.
+      let failedIds: number[] = [];
+      if (failedSets.length > 0) {
+        const items = await tx
+          .select({ id: printBatchItems.id })
+          .from(printBatchItems)
+          .where(eq(printBatchItems.batchId, batchId))
+          .orderBy(asc(printBatchItems.id));
+        const failed = new Set(failedSets);
+        const waitingIds = new Set(waiting.map((row) => row.id));
+        failedIds = items
+          .filter((item, index) => failed.has(Math.floor(index / PRINT_SET_SIZE) + 1) && waitingIds.has(item.id))
+          .map((item) => item.id);
+      }
+      if (failedIds.length > 0) {
+        await tx.delete(printItemProgress).where(and(where, inArray(printItemProgress.batchItemId, failedIds)));
+      }
       await tx.update(printItemProgress).set({ state: "printed", updatedAt: new Date() }).where(where);
-    } else {
-      await tx.delete(printItemProgress).where(where);
+      return { ok: true as const, changed: waiting.length - failedIds.length };
     }
+    await tx.delete(printItemProgress).where(where);
     return { ok: true as const, changed: waiting.length };
   });
+}
+
+/** Puts already-printed sets back in the queue (wrong paper, smudged output) without touching other sets. */
+export async function reprintSets(batchId: number, sets: number[]): Promise<{ ok: true; changed: number } | Failure> {
+  await ensureTable();
+  return db.transaction(async (tx) => {
+    const [batch] = await tx.select().from(printBatches).where(eq(printBatches.id, batchId)).for("update").limit(1);
+    if (!batch) return { ok: false as const, status: 404, error: "Print batch not found." };
+    if (batch.printedAt) {
+      return { ok: false as const, status: 409, error: "This batch has already been confirmed as printed." };
+    }
+    const progress = await tx.select().from(printItemProgress).where(eq(printItemProgress.batchId, batchId));
+    if (progress.some((row) => row.state === "printing")) {
+      return { ok: false as const, status: 409, error: "Confirm or cancel the print run that is waiting first." };
+    }
+    const items = await tx
+      .select({ id: printBatchItems.id })
+      .from(printBatchItems)
+      .where(eq(printBatchItems.batchId, batchId))
+      .orderBy(asc(printBatchItems.id));
+    const wanted = new Set(sets);
+    const ids = items.filter((_, index) => wanted.has(Math.floor(index / PRINT_SET_SIZE) + 1)).map((item) => item.id);
+    if (ids.length === 0) return { ok: false as const, status: 409, error: "Those sets do not exist in this batch." };
+    await tx.delete(printItemProgress).where(and(eq(printItemProgress.batchId, batchId), inArray(printItemProgress.batchItemId, ids)));
+    return { ok: true as const, changed: ids.length };
+  });
+}
+
+/** True only when every card in the batch has been confirmed printed set by set. */
+export async function allCardsPrinted(batchId: number, cardCount: number): Promise<boolean> {
+  await ensureTable();
+  const [row] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(printItemProgress)
+    .where(and(eq(printItemProgress.batchId, batchId), eq(printItemProgress.state, "printed")));
+  return Number(row?.n ?? 0) >= cardCount;
 }

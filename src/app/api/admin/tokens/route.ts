@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
-import { getPublicBaseUrl } from "@/lib/public-url";
 import {
   clientIp,
   readJsonObjectBounded,
   RequestBodyTooLargeError,
 } from "@/lib/request";
-import { createAccessToken } from "@/lib/tokens";
+import { accessLinkFor, createAccessToken } from "@/lib/tokens";
 import { cleanText } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -77,6 +76,6 @@ export async function POST(req: Request) {
     rawToken: raw,
     label,
     expiresAt: expiresAt.toISOString(),
-    url: `${getPublicBaseUrl()}/?access_token=${raw}`,
+    url: accessLinkFor(raw),
   });
 }

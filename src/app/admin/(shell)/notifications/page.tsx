@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import CountIndicator from "@/components/live-sync";
-import { ArrowDownWideNarrow, Bell, BellOff, Check, ChevronRight, Filter, Search, Tag, X } from "lucide-react";
+import { Bell, BellOff, Check, ChevronRight, Filter, Search, Tag, X } from "lucide-react";
+import SortIcon from "@/components/sort-icon";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
@@ -185,7 +186,7 @@ export default async function NotificationsPage({
                       className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
                       Created
-                      <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
+                      <SortIcon active dir={dateOrder === "newest" ? "desc" : "asc"} />
                     </ListLink>
                   </th>
                   <th className="!text-right">Action</th>

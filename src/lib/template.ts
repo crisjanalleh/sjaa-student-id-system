@@ -6,14 +6,14 @@ import {
   type AdminTemplateConfig,
 } from "@/db/schema";
 import { normalizeCardDesign } from "@/lib/card-design";
+import { currentSchoolYear, resolveSchoolYear } from "@/lib/school-year";
 
 export type TemplateRow = typeof idTemplateConfig.$inferSelect;
 
 type Executor = Pick<typeof db, "select" | "insert">;
 
 export function defaultSchoolYear(now = new Date()): string {
-  const y = now.getFullYear();
-  return now.getMonth() >= 5 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+  return currentSchoolYear(now);
 }
 
 export async function getTemplateConfig(executor: Executor = db): Promise<TemplateRow> {
@@ -56,7 +56,8 @@ export async function getTemplateConfigForUpdate(executor: Executor): Promise<Te
 
 export function templateSnapshot(row: TemplateRow) {
   return {
-    schoolYear: row.schoolYear,
+    // Freeze "auto" into a concrete year so reprinting an old batch never changes its validity years.
+    schoolYear: resolveSchoolYear(row.schoolYear),
     orientation: "portrait" as const,
     showTrackStrand: row.showTrackStrand,
     showEmergencyContact: row.showEmergencyContact,

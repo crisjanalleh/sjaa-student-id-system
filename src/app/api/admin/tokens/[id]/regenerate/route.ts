@@ -5,9 +5,8 @@ import { applicationAccessTokens } from "@/db/schema";
 import { audit } from "@/lib/audit";
 import { csrfOk, requireAdminApi } from "@/lib/auth";
 import { config } from "@/lib/config";
-import { getPublicBaseUrl } from "@/lib/public-url";
 import { clientIp } from "@/lib/request";
-import { createAccessToken } from "@/lib/tokens";
+import { accessLinkFor, createAccessToken } from "@/lib/tokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -79,6 +78,6 @@ export async function POST(
     rawToken: result.raw,
     label: result.label,
     expiresAt: result.expiresAt.toISOString(),
-    url: `${getPublicBaseUrl()}/?access_token=${result.raw}`,
+    url: accessLinkFor(result.raw),
   });
 }

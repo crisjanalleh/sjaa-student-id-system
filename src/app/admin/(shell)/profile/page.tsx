@@ -39,10 +39,10 @@ export default async function AdminProfilePage() {
               Manage your personal administrator identity, credentials, photo, and access security.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400 shadow-xs">
+          <div className="admin-badge inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold shadow-xs">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ background: "var(--badge-dot)" }} />
+              <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: "var(--badge-dot)" }} />
             </span>
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
             Authorized Administrator

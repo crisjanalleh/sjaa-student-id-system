@@ -5,6 +5,7 @@ import {
   getPrintDetail,
   listActiveSummaries,
   listRecentSummaries,
+  reprintSets,
   startPrintRun,
 } from "@/lib/print-progress";
 import { readJsonObjectBounded } from "@/lib/request";
@@ -34,6 +35,15 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  try {
+    return await handlePost(req);
+  } catch (caught) {
+    console.error("print-progress failed", caught);
+    return json(503, { ok: false, error: "The server could not save print progress just now. Your earlier progress is safe. Try again in a moment." });
+  }
+}
+
+async function handlePost(req: Request) {
   const { ctx, error } = await requireAdminApi();
   if (error) return error;
   if (!csrfOk(req, ctx.csrfToken)) return json(403, { ok: false, error: "Security validation failed." });
@@ -50,7 +60,17 @@ export async function POST(req: Request) {
     const result = await startPrintRun(batchId, scope);
     if (!result.ok) return json(result.status, { ok: false, error: result.error });
   } else if (body.action === "complete" || body.action === "cancel") {
-    const result = await finishPrintRun(batchId, body.action);
+    const failedSets = Array.isArray(body.failedSets)
+      ? body.failedSets.filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n > 0).slice(0, 500)
+      : [];
+    const result = await finishPrintRun(batchId, body.action, failedSets);
+    if (!result.ok) return json(result.status, { ok: false, error: result.error });
+  } else if (body.action === "reprint") {
+    const sets = Array.isArray(body.sets)
+      ? body.sets.filter((n): n is number => typeof n === "number" && Number.isInteger(n) && n > 0).slice(0, 500)
+      : [];
+    if (sets.length === 0) return json(400, { ok: false, error: "Choose a set to reprint." });
+    const result = await reprintSets(batchId, sets);
     if (!result.ok) return json(result.status, { ok: false, error: result.error });
   } else {
     return json(400, { ok: false, error: "Unknown action." });

@@ -44,7 +44,7 @@ const NAV: { href: string; label: string; icon: LucideIcon; exact: boolean; unre
 ];
 
 const UNREAD_KEYS = ["applications", "print", "qr", "notifications", "audit"] as const;
-const UNREAD_POLL_MS = 3_000;
+const UNREAD_POLL_MS = 5_000;
 const COLLAPSE_KEY = "sjaa-sidebar-collapsed";
 const collapseListeners = new Set<() => void>();
 

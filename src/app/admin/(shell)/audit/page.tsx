@@ -1,9 +1,11 @@
 import { and, asc, desc, eq, gte, lt, sql, type SQL } from "drizzle-orm";
 import CountIndicator from "@/components/live-sync";
-import { ArrowDownWideNarrow, CalendarDays, ChevronRight, Filter, ScrollText, Search, Tag, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Filter, Info, ScrollText, Search, Tag, X } from "lucide-react";
+import SortIcon from "@/components/sort-icon";
 import Link from "next/link";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
+import { DateRangeFields } from "@/components/date-time-picker";
 import { db } from "@/db";
 import { adminUsers, auditLogs } from "@/db/schema";
 import { AUDIT_ACTIONS } from "@/lib/audit";
@@ -149,20 +151,22 @@ export default async function AuditLogsPage({
                 ))}
               </SelectField>
             </div>
-            <div className="space-y-1">
-              <label className="lbl" htmlFor="a_from">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span>Start Date</span>
-              </label>
-              <input id="a_from" name="from" type="date" className="inp w-full" defaultValue={from} />
-            </div>
-            <div className="space-y-1">
-              <label className="lbl" htmlFor="a_to">
-                <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                <span>End Date</span>
-              </label>
-              <input id="a_to" name="to" type="date" className="inp w-full" defaultValue={to} />
-            </div>
+            <DateRangeFields
+              from={from}
+              to={to}
+              fromLabel={
+                <label className="lbl" htmlFor="a_from">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>Start Date</span>
+                </label>
+              }
+              toLabel={
+                <label className="lbl" htmlFor="a_to">
+                  <CalendarDays className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>End Date</span>
+                </label>
+              }
+            />
             <div className="flex flex-wrap items-center gap-2 pt-1 sm:col-span-2 xl:col-span-1">
               <FilterSubmit>
                 <Search className="h-4 w-4" aria-hidden /> Filter
@@ -199,7 +203,7 @@ export default async function AuditLogsPage({
                       className="inline-flex items-center gap-1.5 no-underline font-bold transition-colors"
                     >
                       Timestamp
-                      <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
+                      <SortIcon active dir={dateOrder === "newest" ? "desc" : "asc"} />
                     </ListLink>
                   </th>
                   <th>Actor</th>
@@ -223,10 +227,14 @@ export default async function AuditLogsPage({
                     <td className="text-muted whitespace-nowrap text-xs">
                       {log.entityType
                         ? `${ENTITY_LABELS[log.entityType as keyof typeof ENTITY_LABELS] ?? log.entityType}${log.entityId ? ` #${log.entityId}` : ""}`
-                        : "—"}
+                        : <span className="italic opacity-80">Not record-specific</span>}
                     </td>
                     <td className="max-w-[340px] text-muted text-xs leading-relaxed">
-                      {auditDetails(log.action, log.metadataJson) || "—"}
+                      {auditDetails(log.action, log.metadataJson) || (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[var(--line)] px-2 py-0.5 text-[11px] font-medium italic opacity-80">
+                          <Info className="h-3 w-3" aria-hidden /> No additional details recorded
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

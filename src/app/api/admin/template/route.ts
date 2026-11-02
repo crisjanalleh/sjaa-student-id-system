@@ -12,6 +12,7 @@ import {
 } from "@/lib/request";
 import { normalizeCardDesign } from "@/lib/card-design";
 import { getTemplateConfigForUpdate } from "@/lib/template";
+import { AUTO_SCHOOL_YEAR, isAutoSchoolYear, normalizeSchoolYear } from "@/lib/school-year";
 import { cleanText } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -21,7 +22,6 @@ function json(status: number, body: Record<string, unknown>) {
   return NextResponse.json(body, { status });
 }
 
-const SCHOOL_YEAR_RE = /^(S\.?Y\.?\s*)?\d{4}\s*[-–]\s*\d{4}$/;
 
 export async function POST(req: Request) {
   const { ctx, error } = await requireAdminApi();
@@ -38,7 +38,10 @@ export async function POST(req: Request) {
     return json(400, { ok: false, error: "Malformed request." });
   }
 
-  const schoolYear = cleanText(body.schoolYear).replace("–", "-").slice(0, 20);
+  const rawSchoolYear = cleanText(body.schoolYear);
+  const schoolYear = isAutoSchoolYear(rawSchoolYear)
+    ? AUTO_SCHOOL_YEAR
+    : normalizeSchoolYear(rawSchoolYear) ?? "";
   const orientation = "portrait" as const;
   const signatoryName = cleanText(body.signatoryName).slice(0, 150);
   const signatoryTitle = cleanText(body.signatoryTitle).slice(0, 150);
@@ -63,8 +66,8 @@ export async function POST(req: Request) {
   let signatorySignature: string | null | undefined;
   const errors: Record<string, string> = {};
 
-  if (!SCHOOL_YEAR_RE.test(schoolYear)) {
-    errors.schoolYear = "Enter a valid school year (e.g. 2026-2027).";
+  if (!schoolYear) {
+    errors.schoolYear = "Choose a school year (e.g. 2026-2027) or Automatic.";
   }
   if (rawSignature !== null && rawSignature !== undefined) {
     if (

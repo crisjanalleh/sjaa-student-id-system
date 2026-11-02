@@ -1,39 +1,14 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { FORM_COOKIE, cookieBase, createFormSession } from "@/lib/auth";
-import { hashIp } from "@/lib/crypto";
+import { type NextRequest } from "next/server";
+import { enterWithToken, redirectTo } from "@/lib/access-entry";
 import { isTunneledRequest } from "@/lib/public-url";
-import { clientIp } from "@/lib/request";
-import { markTokenUsed, validateAccessToken } from "@/lib/tokens";
 
 export const dynamic = "force-dynamic";
 
-// Relative redirects keep students on whichever public address they scanned.
-function redirectTo(path: string) {
-  return new NextResponse(null, {
-    status: 302,
-    headers: { Location: path, "cache-control": "no-store", "referrer-policy": "no-referrer" },
-  });
-}
-
 export async function GET(req: NextRequest) {
-  const url = new URL(req.url);
-  const raw = url.searchParams.get("access_token") || "";
+  const raw = new URL(req.url).searchParams.get("access_token") || "";
 
   // No token: locally this is the admin entry point; through the public
   // tunnel it stays the student form so shared links keep working.
   if (!raw) return redirectTo(isTunneledRequest(req.headers) ? "/apply" : "/admin");
-
-  const tokenRow = await validateAccessToken(raw);
-  if (!tokenRow) return redirectTo("/apply?error=invalid");
-
-  const ip = clientIp(req);
-  const session = await createFormSession(tokenRow.id, tokenRow.expiresAt, hashIp(ip));
-  await markTokenUsed(tokenRow.id);
-
-  const res = redirectTo("/apply");
-  res.cookies.set(FORM_COOKIE, session.raw, {
-    ...cookieBase(isTunneledRequest(req.headers) || req.headers.get("x-forwarded-proto") === "https" || undefined),
-    maxAge: session.maxAgeSeconds,
-  });
-  return res;
+  return enterWithToken(req, raw);
 }

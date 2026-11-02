@@ -4,6 +4,7 @@ import type { AdminTemplateConfig } from "@/db/schema";
 import type { CSSProperties } from "react";
 import { House, Phone, UserRound } from "lucide-react";
 import SjaaLogo from "@/components/sjaa-logo";
+import { resolveSchoolYear, validationYearsFor } from "@/lib/school-year";
 
 export type IdCardData = {
   controlNo: string;
@@ -106,12 +107,7 @@ function BackArt() {
 }
 
 function validationYears(schoolYear: string, count: number): string[] {
-  const startYear = Number(schoolYear.match(/\d{4}/)?.[0]);
-  const first = Number.isInteger(startYear) ? startYear : new Date().getFullYear();
-  return Array.from({ length: count }, (_, index) => {
-    const start = first + index;
-    return `${start} - ${start + 1}`;
-  });
+  return validationYearsFor(schoolYear, count);
 }
 
 function CardFront({
@@ -260,7 +256,7 @@ function CardFront({
         >
           S.Y.
           <br />
-          {template.schoolYear}
+          {resolveSchoolYear(template.schoolYear)}
         </div>
       </div>
 
@@ -519,7 +515,7 @@ function CardBack({
         <div style={{ position: "absolute", left: "3mm", bottom: "7mm", fontSize: "5.6px", color: "#64748B", lineHeight: 1.5 }}>
           Control No.: <span style={{ fontFamily: "Consolas, monospace" }}>{data.controlNo}</span>
           <br />
-          School Year: {template.schoolYear}
+          School Year: {resolveSchoolYear(template.schoolYear)}
         </div>
       </div>
 

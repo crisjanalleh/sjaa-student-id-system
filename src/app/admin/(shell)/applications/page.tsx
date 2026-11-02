@@ -1,9 +1,12 @@
 import { and, desc, asc, eq, isNull, like, or, sql, type SQL } from "drizzle-orm";
 import CountIndicator from "@/components/live-sync";
-import { ChevronDown, ChevronRight, ChevronUp, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
+import { ChevronRight, ClipboardList, Filter, Inbox, Search, X } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
+import { applicationListColumns } from "@/db/columns";
 import { studentApplications } from "@/db/schema";
+import ClickableRow from "@/components/clickable-row";
+import SortIcon from "@/components/sort-icon";
 import StatusBadge from "@/components/status-badge";
 import { FilterForm, FilterSubmit, ListCard, ListLink, Pager } from "@/components/list-card";
 import SelectField from "@/components/select-field";
@@ -74,20 +77,32 @@ export default async function ApplicationsPage({
   const orderCol = SORTS[sort];
   const orderBy = [dir === "asc" ? asc(orderCol) : desc(orderCol), desc(studentApplications.id)];
 
-  const [{ total }] = await db
-    .select({ total: sql<number>`count(*)` })
-    .from(studentApplications)
-    .where(and(...conditions));
+  const [[{ total }], apps] = await Promise.all([
+    db
+      .select({ total: sql<number>`count(*)` })
+      .from(studentApplications)
+      .where(and(...conditions)),
+    db
+      .select(applicationListColumns)
+      .from(studentApplications)
+      .where(and(...conditions))
+      .orderBy(...orderBy)
+      .limit(PAGE_SIZE)
+      .offset((page - 1) * PAGE_SIZE),
+  ]);
   const totalPages = Math.max(1, Math.ceil(Number(total) / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-
-  const apps = await db
-    .select()
-    .from(studentApplications)
-    .where(and(...conditions))
-    .orderBy(...orderBy)
-    .limit(PAGE_SIZE)
-    .offset((safePage - 1) * PAGE_SIZE);
+  // An out-of-range page (e.g. records were removed) falls back to the last page.
+  const rows =
+    safePage === page || apps.length > 0
+      ? apps
+      : await db
+          .select(applicationListColumns)
+          .from(studentApplications)
+          .where(and(...conditions))
+          .orderBy(...orderBy)
+          .limit(PAGE_SIZE)
+          .offset((safePage - 1) * PAGE_SIZE);
 
   const baseParams: Record<string, string | undefined> = { q, status, sort, dir };
 
@@ -102,7 +117,7 @@ export default async function ApplicationsPage({
           style={{ color: active ? "var(--academic-blue)" : undefined }}
         >
           {label}
-          {active && (dir === "asc" ? <ChevronUp className="h-3.5 w-3.5" aria-hidden /> : <ChevronDown className="h-3.5 w-3.5" aria-hidden />)}
+          <SortIcon active={active} dir={active ? dir : "desc"} />
         </ListLink>
       </th>
     );
@@ -191,7 +206,7 @@ export default async function ApplicationsPage({
         </FilterForm>
 
         {/* Results Table */}
-        {apps.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--field-bg)] border border-[var(--line)] text-muted">
               <Inbox className="h-7 w-7" aria-hidden />
@@ -214,12 +229,11 @@ export default async function ApplicationsPage({
                   <th>Grade & Track</th>
                   {sortHeader("status", "Status")}
                   {sortHeader("created", "Submitted")}
-                  <th className="!text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {apps.map((a) => (
-                  <tr key={a.id} className="hover:bg-[var(--card)]/50 transition-colors">
+                {rows.map((a) => (
+                  <ClickableRow key={a.id} href={`/admin/applications/${a.id}`} label={`Review application ${a.applicationCode}`}>
                     <td className="font-mono text-xs font-bold text-[var(--academic-blue)]">{a.applicationCode}</td>
                     <td className="font-mono text-xs text-muted">{a.studentIdNumber}</td>
                     <td className="max-w-[220px] truncate font-semibold text-sm">{fullName(a)}</td>
@@ -233,12 +247,7 @@ export default async function ApplicationsPage({
                       <StatusBadge status={a.status} />
                     </td>
                     <td className="text-muted whitespace-nowrap text-xs">{formatDateTime(a.createdAt)}</td>
-                    <td className="!text-right">
-                      <Link href={`/admin/applications/${a.id}`} className="btn btn-outline btn-sm font-semibold">
-                        Review
-                      </Link>
-                    </td>
-                  </tr>
+                  </ClickableRow>
                 ))}
               </tbody>
             </table>

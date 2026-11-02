@@ -39,7 +39,7 @@ export function isUnreadSection(value: unknown): value is UnreadSection {
 }
 
 // Many open tabs (and bulk intake bursts) poll at once; share one computation per admin for a moment.
-const CACHE_MS = 1_500;
+const CACHE_MS = 3_000;
 const cache = new Map<number, { at: number; value: Promise<UnreadCounts> }>();
 
 async function compute(adminId: number): Promise<UnreadCounts> {

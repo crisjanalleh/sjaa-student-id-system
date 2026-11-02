@@ -1,15 +1,18 @@
 import { and, asc, desc, eq, isNull, notExists, sql } from "drizzle-orm";
 import CountIndicator from "@/components/live-sync";
-import { ArrowDownWideNarrow, CalendarClock, ChevronRight, Printer } from "lucide-react";
+import { CalendarClock, ChevronRight, Printer } from "lucide-react";
+import SortIcon from "@/components/sort-icon";
 import QuickTip from "@/components/quick-tip";
 import Link from "next/link";
 import { db } from "@/db";
+import { applicationListColumns } from "@/db/columns";
 import { adminUsers, printBatchItems, printBatches, studentApplications } from "@/db/schema";
 import { getAdminContext } from "@/lib/auth";
 import { formatDateTime, fullName } from "@/lib/format";
 import { ADMIN_PAGE_SIZE } from "@/lib/admin-pagination";
 import PrintSelect from "./print-select";
 import BatchProgressCell from "./batch-progress-cell";
+import BatchRow from "./batch-row";
 import { listRecentSummaries } from "@/lib/print-progress";
 import { ListCard, ListLink, Pager } from "@/components/list-card";
 
@@ -37,7 +40,7 @@ export default async function PrintSelectPage({
       .where(eq(printBatchItems.applicationId, studentApplications.id)),
   );
 
-  const [[{ totalApproved }], recentBatches] = await Promise.all([
+  const [[{ totalApproved }], recentBatches, summaries] = await Promise.all([
     db
       .select({ totalApproved: sql<number>`count(*)` })
       .from(studentApplications)
@@ -53,12 +56,13 @@ export default async function PrintSelectPage({
         desc(printBatches.id),
       )
       .limit(PAGE_SIZE),
+    listRecentSummaries(PAGE_SIZE),
   ]);
   const totalPages = Math.max(1, Math.ceil(Number(totalApproved) / PAGE_SIZE));
-  const summaryById = new Map((await listRecentSummaries(PAGE_SIZE)).map((entry) => [entry.batchId, entry]));
+  const summaryById = new Map(summaries.map((entry) => [entry.batchId, entry]));
   const page = Math.min(requestedPage, totalPages);
   const approved = await db
-    .select()
+    .select(applicationListColumns)
     .from(studentApplications)
     .where(and(eq(studentApplications.status, "approved"), isNull(studentApplications.deletedAt), notAlreadyBatched))
     .orderBy(dateOrder === "oldest" ? asc(studentApplications.approvedAt) : desc(studentApplications.approvedAt), desc(studentApplications.id))
@@ -124,7 +128,7 @@ export default async function PrintSelectPage({
             className="inline-flex items-center gap-1.5 rounded-full border border-[var(--line)] bg-[var(--elevated)] px-3 py-1 text-xs font-semibold text-[var(--ink)] no-underline transition-colors hover:border-[var(--academic-blue)]"
           >
             {dateOrder === "newest" ? "Newest first" : "Oldest first"}
-            <ArrowDownWideNarrow className={`h-3.5 w-3.5 ${dateOrder === "newest" ? "" : "rotate-180"}`} aria-hidden />
+            <SortIcon active dir={dateOrder === "newest" ? "desc" : "asc"} />
           </ListLink>
         </div>
         {recentBatches.length === 0 ? (
@@ -153,7 +157,7 @@ export default async function PrintSelectPage({
               </thead>
               <tbody>
                 {recentBatches.map(({ batch, admin }) => (
-                  <tr key={batch.id}>
+                  <BatchRow key={batch.id} batchId={batch.id} code={batch.batchCode}>
                     <td className="font-mono text-xs font-bold">{batch.batchCode}</td>
                     <td>{batch.cardCount}</td>
                     <td className="text-xs">v{batch.templateVersion}</td>
@@ -164,14 +168,14 @@ export default async function PrintSelectPage({
                         : `Created ${formatDateTime(batch.createdAt)}`}
                     </td>
                     <td>
-                      <BatchProgressCell batchId={batch.id} summary={summaryById.get(batch.id) ?? null} />
+                      <BatchProgressCell summary={summaryById.get(batch.id) ?? null} />
                     </td>
                     <td className="!text-right">
                       <Link href={`/admin/print/${batch.id}`} className="btn btn-outline btn-sm" target="_blank">
                         <Printer className="h-3.5 w-3.5" aria-hidden /> Print
                       </Link>
                     </td>
-                  </tr>
+                  </BatchRow>
                 ))}
               </tbody>
             </table>

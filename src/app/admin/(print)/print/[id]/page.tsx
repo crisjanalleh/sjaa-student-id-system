@@ -104,62 +104,36 @@ export default async function PrintBatchOutputPage({
         printedAt={batch.printedAt?.toISOString() ?? null}
         csrfToken={ctx.csrfToken}
         initial={await getPrintDetail(batch.id)}
+        orientation={template.orientation}
+        missingPhotos={items.filter(({ app }) => !app.photoStorageKey).length}
+        frontSets={pages.map((pageItems, pageIndex) =>
+          pageItems.map(({ app }) => (
+            <IdCard
+              key={`f-${pageIndex}-${app.id}`}
+              variant="front"
+              template={template}
+              data={cardData(app)}
+              photoUrl={app.photoStorageKey ? `/api/admin/applications/${app.id}/photo` : null}
+            />
+          )),
+        )}
+        backSets={pages.map((pageItems, pageIndex) =>
+          pageItems.map(({ app }) => (
+            <IdCard key={`b-${pageIndex}-${app.id}`} variant="back" template={template} data={cardData(app)} />
+          )),
+        )}
+        notice={
+          <div className="no-print mx-auto mb-4 mt-4 flex max-w-4xl items-start gap-2 rounded-md border px-4 py-3 text-xs leading-relaxed" style={{ borderColor: "var(--line-strong)", background: "var(--card)", color: "var(--muted)" }}>
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <span>
+              Cards are laid out at exact CR80 size ({template.orientation === "portrait" ? "53.98 × 85.60" : "85.60 × 53.98"}&nbsp;mm). In the print
+              dialog choose A4, 100% scale, and disable browser headers/footers. The front
+              sheet and back sheet are separated by an automatic page break for duplex ID
+              card printing workflows.
+            </span>
+          </div>
+        }
       />
-
-      <div className="no-print mx-auto mb-4 mt-4 flex max-w-4xl items-start gap-2 rounded-md border px-4 py-3 text-xs leading-relaxed" style={{ borderColor: "var(--line-strong)", background: "var(--card)", color: "var(--muted)" }}>
-        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <span>
-          Cards are laid out at exact CR80 size ({template.orientation === "portrait" ? "53.98 × 85.60" : "85.60 × 53.98"}&nbsp;mm). In the print
-          dialog choose A4, 100% scale, and disable browser headers/footers. The front
-          sheet and back sheet are separated by an automatic page break for duplex ID
-          card printing workflows.
-        </span>
-      </div>
-      {items.length === 0 ? (
-        <p className="no-print px-4 py-10 text-center text-sm">This batch contains no records.</p>
-      ) : (
-        <div className="print-output-wrapper mx-auto w-fit px-2 pb-10">
-          <h2 className="no-print lbl !mb-3 !mt-4">Front sheet</h2>
-          <div className="print-sheet" data-orientation={template.orientation}>
-            {pages.map((pageItems, pageIndex) => (
-              <div
-                key={`front-page-${pageIndex}`}
-                className="print-page"
-                data-set={pageIndex + 1}
-                data-orientation={template.orientation}
-              >
-                {pageItems.map(({ app }) => (
-                  <IdCard
-                    key={`f-${app.id}`}
-                    variant="front"
-                    template={template}
-                    data={cardData(app)}
-                    photoUrl={
-                      app.photoStorageKey ? `/api/admin/applications/${app.id}/photo` : null
-                    }
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-
-          <h2 className="no-print lbl !mb-3 !mt-6">Back sheet</h2>
-          <div className="print-sheet print-back-sheet" data-orientation={template.orientation}>
-            {pages.map((pageItems, pageIndex) => (
-              <div
-                key={`back-page-${pageIndex}`}
-                className="print-page"
-                data-set={pageIndex + 1}
-                data-orientation={template.orientation}
-              >
-                {pageItems.map(({ app }) => (
-                  <IdCard key={`b-${app.id}`} variant="back" template={template} data={cardData(app)} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

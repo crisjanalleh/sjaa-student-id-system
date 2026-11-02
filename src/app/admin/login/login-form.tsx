@@ -51,7 +51,7 @@ export default function LoginForm() {
         </div>
       )}
 
-      <div className="mb-4">
+      <div className="mb-3.5">
         <label className="lbl" htmlFor="login_username">
           Username
         </label>
@@ -59,7 +59,7 @@ export default function LoginForm() {
           <User className="text-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden />
           <input
             id="login_username"
-            className="inp !pl-10"
+            className="inp !h-10 !pl-10 !text-sm"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             autoComplete="username"
@@ -69,7 +69,7 @@ export default function LoginForm() {
           />
         </div>
       </div>
-      <div className="mb-6">
+      <div className="mb-5">
         <label className="lbl" htmlFor="login_password">
           Password
         </label>
@@ -78,7 +78,7 @@ export default function LoginForm() {
           <input
             id="login_password"
             type={showPassword ? "text" : "password"}
-            className="inp !pl-10 !pr-11"
+            className="inp !h-10 !pl-10 !pr-11 !text-sm"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
@@ -96,7 +96,7 @@ export default function LoginForm() {
           </button>
         </div>
       </div>
-      <button type="submit" className="btn btn-primary w-full !py-2.5" disabled={submitting}>
+      <button type="submit" className="btn btn-primary w-full !py-2 text-sm" disabled={submitting}>
         {submitting ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Verifying…

@@ -4,8 +4,16 @@ import { CheckCircle2, ChevronDown, Eye, Loader2, RotateCcw, Save, SlidersHorizo
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { SAMPLE_CARD_DATA, ScaledIdCard } from "@/components/id-card";
+import SelectField from "@/components/select-field";
 import type { AdminTemplateConfig, CardDesignSettings } from "@/db/schema";
 import { DEFAULT_CARD_DESIGN } from "@/lib/card-design";
+import {
+  AUTO_SCHOOL_YEAR,
+  currentSchoolYear,
+  isAutoSchoolYear,
+  normalizeSchoolYear,
+  schoolYearChoices,
+} from "@/lib/school-year";
 
 type Values = AdminTemplateConfig;
 
@@ -197,15 +205,20 @@ export default function TemplateEditor({
             <label className="lbl" htmlFor="tpl_sy">
               School Year
             </label>
-            <input
+            <SelectField
               id="tpl_sy"
               className="inp"
-              value={values.schoolYear}
+              value={isAutoSchoolYear(values.schoolYear) ? AUTO_SCHOOL_YEAR : (normalizeSchoolYear(values.schoolYear) ?? AUTO_SCHOOL_YEAR)}
               onChange={(e) => set("schoolYear", e.target.value)}
-              placeholder="e.g. 2026-2027"
-              maxLength={20}
               aria-invalid={Boolean(errors.schoolYear)}
-            />
+            >
+              <option value={AUTO_SCHOOL_YEAR}>Automatic ({currentSchoolYear()})</option>
+              {[...new Set([...(normalizeSchoolYear(values.schoolYear) ? [normalizeSchoolYear(values.schoolYear) as string] : []), ...schoolYearChoices()])].sort().map((sy) => (
+                <option key={sy} value={sy}>
+                  SY {sy}
+                </option>
+              ))}
+            </SelectField>
             {errors.schoolYear && <p className="field-error" role="alert">{errors.schoolYear}</p>}
           </div>
           <p className="text-muted mb-4 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--line)" }}>

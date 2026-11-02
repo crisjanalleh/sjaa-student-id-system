@@ -1,6 +1,7 @@
 import "server-only";
 import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import {
@@ -77,7 +78,10 @@ export async function createAdminSession(
   return token;
 }
 
-export async function getAdminContext(): Promise<AdminContext | null> {
+const LAST_SEEN_WRITE_MS = 60_000;
+
+// Deduplicated per request: the layout and the page both ask, but only one lookup should run.
+export const getAdminContext = cache(async function getAdminContext(): Promise<AdminContext | null> {
   const store = await cookies();
   const raw = store.get(ADMIN_COOKIE)?.value;
   if (!raw || raw.length < 20) return null;
@@ -107,17 +111,20 @@ export async function getAdminContext(): Promise<AdminContext | null> {
     return null;
   }
 
-  await db
-    .update(adminSessions)
-    .set({ lastSeenAt: new Date() })
-    .where(eq(adminSessions.id, row.session.id));
+  // Frequent polling must not turn into a database write on every request.
+  if (Date.now() - row.session.lastSeenAt.getTime() > LAST_SEEN_WRITE_MS) {
+    await db
+      .update(adminSessions)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(adminSessions.id, row.session.id));
+  }
 
   return {
     admin: row.admin,
     sessionId: row.session.id,
     csrfToken: row.session.csrfToken,
   };
-}
+});
 
 export async function destroyAdminSession(): Promise<void> {
   const store = await cookies();

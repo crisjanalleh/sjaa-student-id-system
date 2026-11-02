@@ -46,7 +46,8 @@ export default function MonthlySubmissions({ months, year, earliestYear, current
     const max = Math.max(...months.map((m) => m.total));
     // Ties resolve to the earliest month so the label is stable.
     const peak = total > 0 ? months.findIndex((m) => m.total === max) : -1;
-    return { total, max, peak, average: total / 12 };
+    const elapsed = months.filter((m) => !m.future).length || 1;
+    return { total, max, peak, average: total / elapsed };
   }, [months]);
 
   const yMax = niceMax(stats.max);
@@ -61,7 +62,7 @@ export default function MonthlySubmissions({ months, year, earliestYear, current
 
   const summary = [
     { label: "Received this year", value: nf(stats.total) },
-    { label: "Monthly average", value: stats.average.toLocaleString("en-US", { maximumFractionDigits: 1 }) },
+    { label: "Monthly average", value: stats.average.toLocaleString("en-US", { maximumFractionDigits: 1 }) + (year === currentYear ? " so far" : "") },
     {
       label: "Busiest month",
       value: stats.peak >= 0 ? `${months[stats.peak].fullName} · ${nf(months[stats.peak].total)}` : "None yet",

@@ -6,6 +6,7 @@ import {
   Copy,
   ImageUp,
   Loader2,
+  Mail,
   PenLine,
   Phone,
   Printer,
@@ -27,6 +28,7 @@ import {
   type FormEvent,
 } from "react";
 import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import { checkEmail, checkPhMobile, formatPhMobile } from "@/lib/format-check";
 import SelectField from "@/components/select-field";
 import SignatureField from "./signature-field";
 
@@ -535,6 +537,18 @@ export default function ApplyForm({
     if (submitting || submissionInFlight.current) return;
     setServerError("");
     setErrors({});
+    const formatErrors: FieldErrors = {};
+    for (const name of ["email", "contactNumber", "emergencyContactPhone"] as const) {
+      if (name === "contactNumber" && !values[name].trim()) continue;
+      const problem = formatCheckFor(name, values[name]);
+      if (problem) formatErrors[name] = problem;
+    }
+    const firstBad = Object.keys(formatErrors)[0];
+    if (firstBad) {
+      setErrors(formatErrors);
+      document.getElementById(`f_${firstBad}`)?.focus();
+      return;
+    }
     if (!photoBlob) {
       setPhotoError("An ID photo is required to submit your application.");
       document.getElementById("photo_upload")?.focus();
@@ -598,6 +612,37 @@ export default function ApplyForm({
     }
   }
 
+  const formatCheckFor = (name: string, value: string): string | null => {
+    if (name === "email") return checkEmail(value);
+    if (name === "contactNumber") return checkPhMobile(value, "contact number");
+    if (name === "emergencyContactPhone")
+      return value.trim() ? checkPhMobile(value, "emergency number") : "Emergency contact phone is required.";
+    return null;
+  };
+
+  const onFieldBlur = (name: keyof typeof EMPTY_VALUES) => {
+    if (name !== "email" && name !== "contactNumber" && name !== "emergencyContactPhone") return;
+    let value = values[name];
+    if (name !== "email" && !checkPhMobile(value)) {
+      const formatted = formatPhMobile(value);
+      if (formatted !== value) {
+        value = formatted;
+        setValues((v) => ({ ...v, [name]: formatted }));
+      }
+    }
+    if (!value.trim() && name !== "emergencyContactPhone") return;
+    const problem = formatCheckFor(name, value);
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (problem) next[name] = problem;
+      else delete next[name];
+      return next;
+    });
+  };
+
+  const isFormatValid = (name: keyof typeof EMPTY_VALUES) =>
+    Boolean(values[name].trim()) && !errors[name] && !formatCheckFor(name, values[name]);
+
   const field = (
     name: keyof typeof EMPTY_VALUES,
     label: string,
@@ -609,39 +654,51 @@ export default function ApplyForm({
       inputMode?: "text" | "tel" | "email" | "numeric";
       hint?: string;
       half?: boolean;
+      Icon?: typeof Mail;
+      validate?: boolean;
     } = {},
-  ) => (
-    <div className={opts.half ? "" : "sm:col-span-2"}>
-      <label className="lbl" htmlFor={`f_${name}`}>
-        {label}
-        {opts.required && <span style={{ color: "var(--danger)" }}> *</span>}
-      </label>
-      <input
-        id={`f_${name}`}
-        name={name}
-        type={opts.type || "text"}
-        className="inp"
-        required={opts.required}
-        value={values[name]}
-        onChange={set(name)}
-        placeholder={opts.placeholder}
-        autoComplete={opts.autoComplete}
-        inputMode={opts.inputMode}
-        aria-invalid={Boolean(errors[name])}
-        aria-describedby={errors[name] ? `e_${name}` : opts.hint ? `h_${name}` : undefined}
-      />
-      {opts.hint && !errors[name] && (
-        <p id={`h_${name}`} className="text-muted mt-1 text-xs">
-          {opts.hint}
-        </p>
-      )}
-      {errors[name] && (
-        <p id={`e_${name}`} className="field-error" role="alert">
-          {errors[name]}
-        </p>
-      )}
-    </div>
-  );
+  ) => {
+    const Icon = opts.Icon;
+    const showValid = opts.validate && isFormatValid(name);
+    return (
+      <div className={opts.half ? "" : "sm:col-span-2"}>
+        <label className="lbl" htmlFor={`f_${name}`}>
+          {label}
+          {opts.required && <span style={{ color: "var(--danger)" }}> *</span>}
+        </label>
+        <div className="field-wrap">
+          {Icon && <Icon className="field-icon" aria-hidden />}
+          <input
+            id={`f_${name}`}
+            name={name}
+            type={opts.type || "text"}
+            className={`inp ${Icon ? "inp-icon" : ""} ${showValid ? "inp-valid" : ""}`}
+            required={opts.required}
+            value={values[name]}
+            onChange={set(name)}
+            onBlur={opts.validate ? () => onFieldBlur(name) : undefined}
+            placeholder={opts.placeholder}
+            autoComplete={opts.autoComplete}
+            inputMode={opts.inputMode}
+            aria-invalid={Boolean(errors[name])}
+            aria-describedby={errors[name] ? `e_${name}` : opts.hint ? `h_${name}` : undefined}
+          />
+          {showValid && <CheckCircle2 className="field-ok" aria-label="Looks good" />}
+        </div>
+        {opts.hint && !errors[name] && (
+          <p id={`h_${name}`} className="field-hint">
+            {opts.hint}
+          </p>
+        )}
+        {errors[name] && (
+          <p id={`e_${name}`} className="field-error field-error-box" role="alert">
+            <TriangleAlert aria-hidden />
+            <span>{errors[name]}</span>
+          </p>
+        )}
+      </div>
+    );
+  };
 
   if (idleState === "expired" && !successCode) {
     return (
@@ -832,30 +889,39 @@ export default function ApplyForm({
         />
         <div className="grid gap-4 sm:grid-cols-2">
           {field("email", "Student Email Address", {
-            type: "email",
+            type: "text",
             required: true,
             autoComplete: "email",
             inputMode: "email",
-            placeholder: "e.g. maria.delacruz@gmail.com",
-            hint: "Required so the school can send you application updates.",
+            placeholder: "maria.delacruz@gmail.com",
+            hint: "Use an email you check often — updates are sent here.",
             half: true,
+            Icon: Mail,
+            validate: true,
           })}
           {field("contactNumber", "Contact Number (optional)", {
             inputMode: "tel",
             autoComplete: "tel",
-            placeholder: "e.g. 0917 123 4567",
+            placeholder: "09XX XXX XXXX",
+            hint: "Starts with 09 or +63, 11 digits.",
             half: true,
+            Icon: Phone,
+            validate: true,
           })}
           {field("emergencyContactName", "Emergency Contact Person", {
             required: true,
             placeholder: "e.g. Juan Dela Cruz (parent or guardian)",
             half: true,
+            Icon: UserRound,
           })}
           {field("emergencyContactPhone", "Emergency Contact Phone", {
             required: true,
             inputMode: "tel",
-            placeholder: "e.g. 0917 123 4567",
+            placeholder: "09XX XXX XXXX",
+            hint: "Printed on the back of your ID. Starts with 09 or +63, 11 digits.",
             half: true,
+            Icon: Phone,
+            validate: true,
           })}
         </div>
       </section>

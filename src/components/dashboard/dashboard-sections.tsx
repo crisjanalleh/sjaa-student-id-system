@@ -11,7 +11,6 @@ import {
   PackageCheck,
   Printer,
   RotateCcw,
-  Search,
   ShieldCheck,
   TriangleAlert,
   UserCog,
@@ -22,6 +21,8 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 import StatusBadge from "@/components/status-badge";
+import ClickableRow from "@/components/clickable-row";
+import SortIcon from "@/components/sort-icon";
 import { auditActionLabel, auditActionTone, type AuditTone } from "@/lib/audit-presentation";
 import { formatDateTime, fullName } from "@/lib/format";
 import { APPLICATION_STATUSES } from "@/lib/fields";
@@ -38,6 +39,14 @@ export type DashboardCounts = {
 };
 
 const nf = (n: number) => n.toLocaleString("en-US");
+
+export type DashboardInsights = {
+  thisMonth: number;
+  lastMonth: number;
+  oldestPendingDays: number | null;
+};
+
+const plural = (n: number, word: string) => `${nf(n)} ${word}${n === 1 ? "" : "s"}`;
 
 export function SectionError({ title }: { title: string }) {
   return (
@@ -75,12 +84,39 @@ const pillLink =
 
 /* ----------------------------- KPI cards ----------------------------- */
 
-export function DashboardStatistics({ counts }: { counts: DashboardCounts }) {
+export function DashboardStatistics({ counts, insights }: { counts: DashboardCounts; insights: DashboardInsights | null }) {
+  const handedOut = counts.printed + counts.claimed;
+  const claimRate = handedOut > 0 ? Math.round((counts.claimed / handedOut) * 100) : null;
+  const trend = insights ? insights.thisMonth - insights.lastMonth : 0;
+  const totalHint = insights
+    ? `${plural(insights.thisMonth, "new application")} this month${
+        insights.lastMonth > 0 || insights.thisMonth > 0
+          ? trend === 0
+            ? " · same as last month"
+            : ` · ${trend > 0 ? "up" : "down"} ${nf(Math.abs(trend))} from last month`
+          : ""
+      }.`
+    : "All recorded applications.";
+  const pendingHint =
+    counts.pending === 0
+      ? "Nothing waiting. The review queue is clear."
+      : insights?.oldestPendingDays != null
+        ? insights.oldestPendingDays === 0
+          ? "Oldest was submitted today."
+          : `Oldest has waited ${plural(insights.oldestPendingDays, "day")}.`
+        : "Awaiting administrator approval.";
   const cards: { label: string; value: number; hint: string; Icon: LucideIcon; accent: string; href: string }[] = [
-    { label: "Total applications", value: counts.total, hint: "All recorded applications.", Icon: Users, accent: "var(--academic-blue)", href: "/admin/applications" },
-    { label: "Pending review", value: counts.pending, hint: "Awaiting administrator approval.", Icon: ClipboardList, accent: "var(--st-pending)", href: "/admin/applications?status=pending" },
-    { label: "Ready to print", value: counts.approved, hint: "Approved applications awaiting production.", Icon: Printer, accent: "var(--st-approved)", href: "/admin/applications?status=approved" },
-    { label: "IDs claimed", value: counts.claimed, hint: "Completed physical handovers.", Icon: PackageCheck, accent: "var(--st-claimed)", href: "/admin/applications?status=claimed" },
+    { label: "Total applications", value: counts.total, hint: totalHint, Icon: Users, accent: "var(--academic-blue)", href: "/admin/applications" },
+    { label: "Pending review", value: counts.pending, hint: pendingHint, Icon: ClipboardList, accent: "var(--st-pending)", href: "/admin/applications?status=pending" },
+    { label: "Ready to print", value: counts.approved, hint: counts.approved === 0 ? "No approved applications are waiting." : "Approved and waiting for a print batch.", Icon: Printer, accent: "var(--st-approved)", href: "/admin/print" },
+    {
+      label: "IDs claimed",
+      value: counts.claimed,
+      hint: claimRate === null ? "No IDs have been printed yet." : `${claimRate}% of ${plural(handedOut, "printed ID")} collected.`,
+      Icon: PackageCheck,
+      accent: "var(--st-claimed)",
+      href: "/admin/applications?status=claimed",
+    },
   ];
   return (
     <section aria-label="Application statistics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -106,6 +142,8 @@ export function DashboardStatistics({ counts }: { counts: DashboardCounts }) {
     </section>
   );
 }
+
+/* --------------------------- Status pipeline --------------------------- */
 
 /* --------------------------- Needs attention --------------------------- */
 
@@ -197,19 +235,12 @@ export function RecentApplications({ rows, order }: { rows: RecentApp[]; order: 
     <section className="card overflow-hidden lg:col-span-2" aria-labelledby="recent-apps-title">
       <SectionHead icon={Layers} title="Recent applications" id="recent-apps-title">
         <Link href={`/admin?applicationOrder=${order === "newest" ? "oldest" : "newest"}`} className={pillLink} scroll={false}>
-          {order === "newest" ? "Newest" : "Oldest"} first
+          {order === "newest" ? "Newest" : "Oldest"} first <SortIcon active dir={order === "newest" ? "desc" : "asc"} />
         </Link>
         <Link href="/admin/applications" className={pillLink}>
           View all <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Link>
       </SectionHead>
-      <form action="/admin/applications" method="get" role="search" className="border-b border-[var(--line)] px-4 py-3 sm:px-5">
-        <label htmlFor="dash_search" className="sr-only">Search applications by name, LRN or control number</label>
-        <div className="relative">
-          <Search className="text-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" aria-hidden />
-          <input id="dash_search" name="q" maxLength={80} className="inp !pl-9" placeholder="Search name, LRN or control number…" />
-        </div>
-      </form>
       {rows.length === 0 ? (
         <div className="dash-empty">
           <div className="dash-empty-icon"><Layers className="h-7 w-7" aria-hidden /></div>
@@ -229,27 +260,17 @@ export function RecentApplications({ rows, order }: { rows: RecentApp[]; order: 
                 <th>Grade</th>
                 <th>Status</th>
                 <th>Submitted</th>
-                <th className="text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((a) => (
-                <tr key={a.id}>
+                <ClickableRow key={a.id} href={`/admin/applications/${a.id}`} label={`Open application ${a.applicationCode}`}>
                   <td className="whitespace-nowrap font-mono text-xs font-bold text-[var(--ink)]">{a.applicationCode}</td>
                   <td className="max-w-[200px] truncate font-semibold">{fullName(a)}</td>
                   <td className="whitespace-nowrap">{a.gradeLevel}</td>
                   <td><StatusBadge status={a.status} /></td>
                   <td className="text-muted whitespace-nowrap text-xs">{formatDateTime(a.createdAt)}</td>
-                  <td className="text-right">
-                    <Link
-                      href={`/admin/applications/${a.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--academic-blue)] no-underline hover:underline"
-                      aria-label={`Open application ${a.applicationCode}`}
-                    >
-                      Open <ArrowRight className="h-3 w-3" aria-hidden />
-                    </Link>
-                  </td>
-                </tr>
+                </ClickableRow>
               ))}
             </tbody>
           </table>

@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, gte, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, min, sql } from "drizzle-orm";
 import { LayoutDashboard, QrCode } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/db";
+import { applicationListColumns } from "@/db/columns";
 import { adminUsers, auditLogs, studentApplications } from "@/db/schema";
 import GlobalSearch from "@/components/dashboard/global-search";
 import {
@@ -11,6 +12,7 @@ import {
   RecentApplications,
   SectionError,
   type DashboardCounts,
+  type DashboardInsights,
 } from "@/components/dashboard/dashboard-sections";
 import MonthlySubmissions, { type MonthBucket } from "@/components/dashboard/monthly-submissions";
 
@@ -61,7 +63,7 @@ export default async function DashboardPage({
   );
   const recentTask = settle(
     db
-      .select()
+      .select(applicationListColumns)
       .from(studentApplications)
       .where(isNull(studentApplications.deletedAt))
       .orderBy(
@@ -78,12 +80,46 @@ export default async function DashboardPage({
       .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
       .limit(8),
   );
+  const monthStart = (offset: number) => new Date(Date.UTC(currentYear, currentMonthIndex + offset, 1) - PHT_OFFSET_MS);
+  const insightsTask = settle(
+    (async () => {
+      const [[thisMonth], [lastMonth], [oldest]] = await Promise.all([
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(studentApplications)
+          .where(and(isNull(studentApplications.deletedAt), gte(studentApplications.createdAt, monthStart(0)))),
+        db
+          .select({ n: sql<number>`count(*)` })
+          .from(studentApplications)
+          .where(
+            and(
+              isNull(studentApplications.deletedAt),
+              gte(studentApplications.createdAt, monthStart(-1)),
+              lt(studentApplications.createdAt, monthStart(0)),
+            ),
+          ),
+        db
+          .select({ at: min(studentApplications.createdAt) })
+          .from(studentApplications)
+          .where(and(isNull(studentApplications.deletedAt), eq(studentApplications.status, "pending"))),
+      ]);
+      const waitedMs = oldest?.at ? currentPhtDate().getTime() - PHT_OFFSET_MS - oldest.at.getTime() : null;
+      return {
+        thisMonth: Number(thisMonth?.n ?? 0),
+        lastMonth: Number(lastMonth?.n ?? 0),
+        oldestPendingDays: waitedMs === null ? null : Math.max(0, Math.floor(waitedMs / 86_400_000)),
+      } satisfies DashboardInsights;
+    })(),
+  );
   const chartTask = settle(
     (async () => {
-      const [{ firstYear }] = await db
-        .select({ firstYear: sql<number | null>`MIN(YEAR(${localCreated}))` })
+      const [{ firstCreated }] = await db
+        .select({ firstCreated: min(studentApplications.createdAt) })
         .from(studentApplications)
         .where(isNull(studentApplications.deletedAt));
+      const firstYear = firstCreated
+        ? new Date(new Date(firstCreated).getTime() + PHT_OFFSET_MS).getUTCFullYear()
+        : null;
       const earliestYear = firstYear ? Math.min(Number(firstYear), currentYear) : currentYear;
       const year = Number.isFinite(requestedYear)
         ? Math.min(currentYear, Math.max(earliestYear, requestedYear))
@@ -113,7 +149,7 @@ export default async function DashboardPage({
     })(),
   );
 
-  const [countRows, recent, activity, chart] = await Promise.all([countsTask, recentTask, activityTask, chartTask]);
+  const [countRows, recent, activity, chart, insights] = await Promise.all([countsTask, recentTask, activityTask, chartTask, insightsTask]);
 
   const counts: DashboardCounts | null = countRows
     ? countRows.reduce<DashboardCounts>(
@@ -151,7 +187,7 @@ export default async function DashboardPage({
       {counts ? (
         <>
           <NeedsAttention counts={counts} />
-          <DashboardStatistics counts={counts} />
+          <DashboardStatistics counts={counts} insights={insights} />
         </>
       ) : (
         <SectionError title="Application statistics" />

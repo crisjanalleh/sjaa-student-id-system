@@ -1,7 +1,7 @@
 import { and, asc, inArray, isNull } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/db";
-import {
+import { applicationListColumns } from "@/db/columns";import {
   printBatchItems,
   printBatches,
   studentApplications,
@@ -65,9 +65,42 @@ export async function POST(req: Request) {
 
   const ip = clientIp(req);
 
-  const txResult = await db.transaction(async (tx) => {
+  // Deadlocks / lock timeouts are expected when admins create batches at the same time; retry briefly.
+  let txResult: Awaited<ReturnType<typeof createBatch>>;
+  try {
+    txResult = await withRetry(() => createBatch(ids, ctx.admin.id, ip));
+  } catch (caught) {
+    console.error("batch creation failed", caught);
+    return json(503, { ok: false, error: "The database was busy and the batch was not created. Nothing was changed. Please try again." });
+  }
+
+  if ("error" in txResult) {
+    return json(409, { ok: false, error: txResult.error });
+  }
+
+  return json(201, {
+    ok: true,
+    batchId: txResult.batchId,
+  });
+}
+
+async function withRetry<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await run();
+    } catch (caught) {
+      const code = (caught as { code?: string; cause?: { code?: string } })?.code ?? (caught as { cause?: { code?: string } })?.cause?.code;
+      const transient = code === "ER_LOCK_DEADLOCK" || code === "ER_LOCK_WAIT_TIMEOUT";
+      if (!transient || attempt >= attempts) throw caught;
+      await new Promise((resolve) => setTimeout(resolve, 150 * attempt));
+    }
+  }
+}
+
+async function createBatch(ids: number[], adminId: number, ip: string | null) {
+  return db.transaction(async (tx) => {
     const rows = await tx
-      .select()
+      .select(applicationListColumns)
       .from(studentApplications)
       .where(and(inArray(studentApplications.id, ids), isNull(studentApplications.deletedAt)))
       .orderBy(asc(studentApplications.id))
@@ -100,7 +133,7 @@ export async function POST(req: Request) {
       .insert(printBatches)
       .values({
         batchCode,
-        createdByAdminId: ctx.admin.id,
+        createdByAdminId: adminId,
         templateVersion: template.version,
         templateSnapshot: templateSnapshot(template),
         cardCount: rows.length,
@@ -119,7 +152,7 @@ export async function POST(req: Request) {
 
     await audit(
       {
-        adminId: ctx.admin.id,
+        adminId,
         action: "batch.created",
         entityType: "print_batch",
         entityId: batch.id,
@@ -134,14 +167,5 @@ export async function POST(req: Request) {
     );
 
     return { batchId: batch.id };
-  });
-
-  if ("error" in txResult) {
-    return json(409, { ok: false, error: txResult.error });
-  }
-
-  return json(201, {
-    ok: true,
-    batchId: txResult.batchId,
   });
 }

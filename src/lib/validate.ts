@@ -1,5 +1,6 @@
 import "server-only";
 import { GRADE_LEVELS, TRACK_STRANDS } from "@/lib/fields";
+import { checkEmail, checkPhMobile, normalizePhMobile } from "@/lib/format-check";
 
 export type FieldErrors = Record<string, string>;
 
@@ -17,8 +18,6 @@ export function cleanMultiline(value: unknown): string {
     .trim();
 }
 
-const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
-const PHONE_RE = /^[+0-9][0-9 ()-]{5,24}$/;
 const NAME_RE = /^[A-Za-zÑñ][A-Za-zÑñ .'-]*$/;
 
 export function validateApplicationFields(input: Record<string, unknown>): {
@@ -86,13 +85,15 @@ export function validateApplicationFields(input: Record<string, unknown>): {
   const emailRaw = cleanText(input.email).toLowerCase().slice(0, 255);
   const email = emailRaw || null;
   if (!email) errors.email = "Email address is required for application updates.";
-  else if (!EMAIL_RE.test(email))
-    errors.email = "Enter a valid email address.";
+  else {
+    const emailProblem = checkEmail(email);
+    if (emailProblem) errors.email = emailProblem;
+  }
 
   const contactRaw = cleanText(input.contactNumber).slice(0, 32);
-  const contactNumber = contactRaw || null;
-  if (contactNumber && !PHONE_RE.test(contactNumber))
-    errors.contactNumber = "Enter a valid phone number (e.g. 09xx xxx xxxx).";
+  const contactProblem = checkPhMobile(contactRaw, "contact number");
+  if (contactProblem) errors.contactNumber = contactProblem;
+  const contactNumber = contactRaw ? (normalizePhMobile(contactRaw) ?? contactRaw) : null;
 
   const emergencyContactName = cleanText(input.emergencyContactName).slice(0, 150);
   if (!emergencyContactName)
@@ -100,11 +101,13 @@ export function validateApplicationFields(input: Record<string, unknown>): {
   else if (!NAME_RE.test(emergencyContactName))
     errors.emergencyContactName = "Enter a valid contact person name.";
 
-  const emergencyContactPhone = cleanText(input.emergencyContactPhone).slice(0, 32);
-  if (!emergencyContactPhone)
-    errors.emergencyContactPhone = "Emergency contact phone is required.";
-  else if (!PHONE_RE.test(emergencyContactPhone))
-    errors.emergencyContactPhone = "Enter a valid emergency phone number.";
+  const emergencyRaw = cleanText(input.emergencyContactPhone).slice(0, 32);
+  if (!emergencyRaw) errors.emergencyContactPhone = "Emergency contact phone is required.";
+  else {
+    const problem = checkPhMobile(emergencyRaw, "emergency number");
+    if (problem) errors.emergencyContactPhone = problem;
+  }
+  const emergencyContactPhone = normalizePhMobile(emergencyRaw) ?? emergencyRaw;
 
   const consent = input.consent === true || input.consent === "true" || input.consent === "on";
   if (!consent) errors.consent = "You must agree to the privacy notice to submit.";

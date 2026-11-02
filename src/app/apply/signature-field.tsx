@@ -5,10 +5,11 @@ import {
   Eraser,
   ImageUp,
   Lightbulb,
+  Loader2,
   PenLine,
-  RotateCw,
   Save,
   Smartphone,
+  Sparkles,
   Trash2,
   Undo2,
   X,
@@ -129,6 +130,94 @@ function usePortraitPhone() {
 
 type LockableOrientation = ScreenOrientation & { lock?: (orientation: string) => Promise<void> };
 
+const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function resample(points: Point[], spacing: number): Point[] {
+  if (points.length < 2) return points;
+  const out: Point[] = [points[0]];
+  let carry = 0;
+  for (let i = 1; i < points.length; i++) {
+    let a = out[out.length - 1];
+    const b = points[i];
+    let d = Math.hypot(b.x - a.x, b.y - a.y);
+    while (carry + d >= spacing) {
+      const t = (spacing - carry) / d;
+      a = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      out.push(a);
+      d = Math.hypot(b.x - a.x, b.y - a.y);
+      carry = 0;
+    }
+    carry += d;
+  }
+  const last = points[points.length - 1];
+  if (out.length === 1 || Math.hypot(last.x - out[out.length - 1].x, last.y - out[out.length - 1].y) > spacing / 3) out.push(last);
+  return out;
+}
+
+function smoothPath(points: Point[]): Point[] {
+  let pts = resample(points, 0.006);
+  for (let pass = 0; pass < 3; pass++) {
+    pts = pts.map((p, i) => {
+      if (i === 0 || i === pts.length - 1) return p;
+      const a = pts[Math.max(0, i - 2)];
+      const b = pts[i - 1];
+      const c = pts[i + 1];
+      const d = pts[Math.min(pts.length - 1, i + 2)];
+      return { x: (a.x + 2 * b.x + 6 * p.x + 2 * c.x + d.x) / 12, y: (a.y + 2 * b.y + 6 * p.y + 2 * c.y + d.y) / 12 };
+    });
+  }
+  return pts;
+}
+
+/** Re-draws the strokes with smoothed paths and a pen-like taper, then fits them to the ID box. */
+async function enhanceStrokes(strokes: Point[][], onProgress: (pct: number, label: string) => void): Promise<string | null> {
+  const unit = 480;
+  let maxX = 0;
+  for (const s of strokes) for (const p of s) maxX = Math.max(maxX, p.x);
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(maxX * unit) + 80;
+  canvas.height = unit + 80;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.fillStyle = `rgb(${INK.r},${INK.g},${INK.b})`;
+  ctx.strokeStyle = ctx.fillStyle;
+  const base = unit * 0.022;
+
+  onProgress(10, "Reading your strokes…");
+  await pause(250);
+  for (let s = 0; s < strokes.length; s++) {
+    onProgress(15 + Math.round((60 * s) / strokes.length), "Smoothing shaky lines…");
+    const pts = smoothPath(strokes[s]).map((p) => ({ x: p.x * unit + 40, y: p.y * unit + 40 }));
+    if (pts.length < 2) {
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, base * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      for (let i = 1; i < pts.length; i++) {
+        const t = i / (pts.length - 1);
+        const taper = 0.55 + 0.6 * Math.sin(Math.PI * Math.min(1, Math.max(0, t)));
+        ctx.lineWidth = base * Math.min(1.1, taper);
+        ctx.beginPath();
+        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+        ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+      }
+    }
+    await frame();
+  }
+  onProgress(80, "Balancing line thickness…");
+  await pause(300);
+  onProgress(92, "Fitting to your ID…");
+  await frame();
+  const result = trimAndFit(canvas);
+  await pause(200);
+  onProgress(100, "Done");
+  return result;
+}
+
 async function enterLandscape() {
   try {
     await document.documentElement.requestFullscreen?.();
@@ -159,6 +248,9 @@ function SignaturePadModal({ onSave, onCancel }: { onSave: (dataUrl: string) => 
   const [count, setCount] = useState(0);
   const [preview, setPreview] = useState("");
   const [error, setError] = useState("");
+  const [enhance, setEnhance] = useState(false);
+  const [progress, setProgress] = useState<{ pct: number; label: string } | null>(null);
+  const [review, setReview] = useState<{ original: string; enhanced: string } | null>(null);
   const portrait = usePortraitPhone();
 
   function redraw() {
@@ -229,25 +321,45 @@ function SignaturePadModal({ onSave, onCancel }: { onSave: (dataUrl: string) => 
     };
   }, []);
 
+  // When the phone stays in portrait (rotation locked, or iOS), the pad is turned 90° so it is still landscape.
   function toPoint(event: React.PointerEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
+    if (portrait) return { x: (event.clientY - rect.top) / rect.width, y: (rect.right - event.clientX) / rect.width };
     return { x: (event.clientX - rect.left) / rect.height, y: (event.clientY - rect.top) / rect.height };
   }
 
-  function save() {
+  async function save() {
     const canvas = canvasRef.current;
     const url = canvas && strokes.current.length ? trimAndFit(canvas) : null;
     if (!url) {
       setError("Please sign inside the box first.");
       return;
     }
-    onSave(url);
+    if (!enhance) {
+      onSave(url);
+      return;
+    }
+    setProgress({ pct: 0, label: "Getting started…" });
+    try {
+      const enhanced = await enhanceStrokes(strokes.current, (pct, label) => setProgress({ pct, label }));
+      if (enhanced) setReview({ original: url, enhanced });
+      else onSave(url);
+    } catch {
+      setError("We couldn't beautify it, so your original signature was kept.");
+      onSave(url);
+    } finally {
+      setProgress(null);
+    }
   }
+
+  const rotatedStyle = portrait
+    ? ({ width: "100dvh", height: "100dvw", transform: "rotate(90deg) translateY(-100%)", transformOrigin: "top left", top: 0, left: 0 } as const)
+    : undefined;
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex flex-col"
-      style={{ background: "var(--bg)", color: "var(--ink)" }}
+      className={portrait ? "fixed z-[200] flex flex-col" : "fixed inset-0 z-[200] flex flex-col"}
+      style={{ background: "var(--bg)", color: "var(--ink)", ...rotatedStyle }}
       role="dialog"
       aria-modal="true"
       aria-label="Signature pad"
@@ -255,7 +367,7 @@ function SignaturePadModal({ onSave, onCancel }: { onSave: (dataUrl: string) => 
       <div className="flex items-center justify-between gap-3 border-b px-4 py-2" style={{ borderColor: "var(--line)", background: "var(--card)" }}>
         <div className="min-w-0">
           <h2 className="truncate text-sm font-bold">Sign your name</h2>
-          <p className="text-muted truncate text-[11px]">Use your finger or a stylus. Sign big — we resize it to fit your ID.</p>
+          <p className="text-muted truncate text-[11px]">Draw inside the white box with your finger or stylus. Sign big — we resize it for your ID.</p>
         </div>
         <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>
           <X className="h-4 w-4" aria-hidden /> Cancel
@@ -323,6 +435,16 @@ function SignaturePadModal({ onSave, onCancel }: { onSave: (dataUrl: string) => 
             <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             Sign the way you usually do. Made a mistake? Tap Undo to remove the last stroke.
           </p>
+          <label
+            className="flex cursor-pointer items-start gap-2 rounded-md border p-2 text-[11px] leading-snug"
+            style={{ borderColor: enhance ? "var(--accent-fill)" : "var(--line-strong)", background: "var(--card)" }}
+          >
+            <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={enhance} onChange={(e) => setEnhance(e.target.checked)} />
+            <span>
+              <span className="flex items-center gap-1 font-bold"><Sparkles className="h-3.5 w-3.5" aria-hidden /> Beautify my signature</span>
+              <span className="text-muted">Optional. Smooths shaky lines. You can compare before saving.</span>
+            </span>
+          </label>
           {error && <p className="field-error" role="alert">{error}</p>}
           <div className="mt-auto grid grid-cols-2 gap-2">
             <button
@@ -349,24 +471,41 @@ function SignaturePadModal({ onSave, onCancel }: { onSave: (dataUrl: string) => 
             >
               <Eraser className="h-4 w-4" aria-hidden /> Clear
             </button>
-            <button type="button" className="btn btn-primary col-span-2" disabled={count === 0} onClick={save}>
-              <Save className="h-4 w-4" aria-hidden /> Save signature
+            <button type="button" className="btn btn-primary col-span-2" disabled={count === 0 || progress !== null} onClick={() => void save()}>
+              <Save className="h-4 w-4" aria-hidden /> {enhance ? "Beautify & continue" : "Save signature"}
             </button>
           </div>
         </aside>
 
-        {portrait && (
-          <div
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 p-6 text-center"
-            style={{ background: "var(--bg)" }}
-            role="alert"
-          >
-            <RotateCw className="h-10 w-10 animate-pulse" style={{ color: "var(--accent-fill)" }} aria-hidden />
-            <p className="text-base font-bold">Turn your phone sideways</p>
-            <p className="text-muted max-w-xs text-sm">
-              Signing is easier in landscape. If nothing happens, make sure your phone&apos;s rotation lock is off.
-              Your signature so far is kept safe.
-            </p>
+        {progress && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 p-6 text-center" style={{ background: "color-mix(in srgb, var(--bg) 92%, transparent)" }} role="status" aria-live="polite">
+            <Loader2 className="h-8 w-8 animate-spin" style={{ color: "var(--accent-fill)" }} aria-hidden />
+            <p className="text-sm font-bold">Beautifying your signature…</p>
+            <div className="h-2 w-64 max-w-full overflow-hidden rounded-full" style={{ background: "var(--line)" }}>
+              <div className="h-full rounded-full transition-[width] duration-300" style={{ width: `${progress.pct}%`, background: "var(--accent-fill)" }} />
+            </div>
+            <p className="text-muted text-xs">{progress.label} {progress.pct}%</p>
+          </div>
+        )}
+
+        {review && (
+          <div className="absolute inset-0 z-10 flex flex-col gap-3 overflow-y-auto p-4" style={{ background: "var(--bg)" }}>
+            <p className="text-sm font-bold">Pick the one you prefer</p>
+            <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+              <div>
+                <IdSignaturePreview src={review.original} />
+                <p className="text-muted mt-1 text-center text-[11px]">Original</p>
+              </div>
+              <div>
+                <IdSignaturePreview src={review.enhanced} />
+                <p className="mt-1 text-center text-[11px] font-bold">Beautified</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setReview(null)}>Keep editing</button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => onSave(review.original)}>Use original</button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => onSave(review.enhanced)}>Use beautified</button>
+            </div>
           </div>
         )}
       </div>
@@ -387,14 +526,24 @@ function LandscapeIntro({ onContinue, onCancel }: { onContinue: () => void; onCa
         <p className="text-sm leading-relaxed">
           Next, the signing pad opens in <strong>full screen</strong> and in <strong>landscape</strong> (sideways) mode.
         </p>
-        <ul className="text-muted mt-3 list-disc space-y-1.5 pl-5 text-sm leading-relaxed">
-          <li>A wide pad lets you sign naturally without running out of space.</li>
-          <li>Full screen hides distractions, so your finger doesn&apos;t scroll the page by accident.</li>
-          <li>You&apos;ll see a live preview of how it looks on your ID before saving.</li>
-        </ul>
+        <ol className="mt-3 space-y-2 text-sm leading-relaxed">
+          {[
+            "Tap “Open signature pad”. Your screen turns sideways automatically, even if rotation lock is on.",
+            "Sign inside the white box. Use Undo or Clear if you make a mistake.",
+            "Optional: tick “Beautify my signature” to smooth shaky lines, then compare before saving.",
+            "Tap Save. You’ll see how it looks on your ID.",
+          ].map((text, i) => (
+            <li key={text} className="flex items-start gap-2.5">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: "color-mix(in srgb, var(--accent-fill) 16%, var(--card))" }}>
+                {i + 1}
+              </span>
+              <span className="text-muted">{text}</span>
+            </li>
+          ))}
+        </ol>
         <p className="mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-xs" style={{ borderColor: "var(--line)" }}>
           <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-          If your phone doesn&apos;t rotate by itself, turn it sideways and make sure rotation lock is off.
+          Your signature stays on your device until you submit the form.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" className="btn btn-outline" onClick={onCancel}>

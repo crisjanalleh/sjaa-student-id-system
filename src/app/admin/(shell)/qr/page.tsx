@@ -13,6 +13,13 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "QR Code Generator" };
 
+// School years start in June: January-May still belongs to the school year that began the previous year.
+function currentSchoolYears(): string[] {
+  const manila = new Date(Date.now() + 8 * 3_600_000);
+  const startYear = manila.getUTCMonth() < 5 ? manila.getUTCFullYear() - 1 : manila.getUTCFullYear();
+  return [startYear, startYear + 1].map((y) => `SY ${y}-${y + 1}`);
+}
+
 export default async function QrPage({
   searchParams,
 }: {
@@ -44,9 +51,10 @@ export default async function QrPage({
     useCount: token.useCount,
   }));
 
+  const schoolYears = currentSchoolYears();
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12">
-      {/* Breadcrumb & Page Head */}
       <div className="space-y-2">
         <nav className="flex items-center gap-1.5 text-xs text-muted font-medium" aria-label="Breadcrumb">
           <Link href="/admin" className="hover:text-[var(--ink)] transition-colors">
@@ -73,7 +81,7 @@ export default async function QrPage({
         </div>
       </div>
 
-      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} school={{ name: SCHOOL.name, address: SCHOOL.address, motto: SCHOOL.motto }} />
+      <QrManager tokens={serialized} csrfToken={ctx!.csrfToken} dateOrder={dateOrder} page={page} totalPages={totalPages} schoolYears={schoolYears} school={{ name: SCHOOL.name, address: SCHOOL.address, motto: SCHOOL.motto }} />
     </div>
   );
 }

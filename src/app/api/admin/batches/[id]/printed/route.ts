@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { db } from "@/db";
+import { applicationListColumns } from "@/db/columns";import { allCardsPrinted } from "@/lib/print-progress";
 import {
   printBatchItems,
   printBatches,
@@ -66,7 +67,7 @@ export async function POST(
     if (batch.printedAt) return { status: 409 as const, reason: "already-printed" as const };
 
     const items = await tx
-      .select({ app: studentApplications })
+      .select({ app: applicationListColumns })
       .from(printBatchItems)
       .innerJoin(
         studentApplications,
@@ -78,6 +79,9 @@ export async function POST(
     if (items.length === 0) return { status: 409 as const, reason: "empty" as const };
     if (items.some(({ app }) => app.deletedAt || app.status !== "approved")) {
       return { status: 409 as const, reason: "changed" as const };
+    }
+    if (!(await allCardsPrinted(batchId, items.length))) {
+      return { status: 409 as const, reason: "unprinted" as const };
     }
 
     const now = new Date();
@@ -138,30 +142,27 @@ export async function POST(
         ? "This batch has already been confirmed as printed. Refresh the page to see its current status."
         : result.reason === "empty"
           ? "This batch has no cards to mark as printed."
-          : "One or more applications changed after this batch was created. Refresh the batch and review the records.";
+          : result.reason === "unprinted"
+            ? "Some sets are not confirmed as printed yet. Print and confirm every set first."
+            : "One or more applications changed after this batch was created. Refresh the batch and review the records.";
     return json(409, { ok: false, error: message });
   }
 
-  const deliveryResults: PromiseSettledResult<{ ok: boolean }>[] = [];
-  let nextNotification = 0;
-  const workerCount = Math.min(5, result.notificationIds.length);
-  await Promise.all(
-    Array.from({ length: workerCount }, async () => {
-      while (nextNotification < result.notificationIds.length) {
-        const notificationId = result.notificationIds[nextNotification++];
-        deliveryResults.push(
+  // Emails are already queued in the database; sending them in the background keeps a 100-card
+  // confirmation fast, and any failure stays visible and retryable on the Notifications page.
+  const queued = result.notificationIds;
+  after(async () => {
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(5, queued.length) }, async () => {
+        while (next < queued.length) {
+          const notificationId = queued[next++];
           await Promise.resolve()
             .then(() => deliverNotification(notificationId))
-            .then(
-              (delivery) => ({ status: "fulfilled", value: delivery }) as const,
-              (reason: unknown) => ({ status: "rejected", reason }) as const,
-            ),
-        );
-      }
-    }),
-  );
-  const notificationAttention = deliveryResults.some(
-    (delivery) => delivery.status === "rejected" || !delivery.value.ok,
-  );
-  return json(200, { ok: true, notificationAttention });
+            .catch(() => undefined);
+        }
+      }),
+    );
+  });
+  return json(200, { ok: true, notificationsQueued: queued.length });
 }
